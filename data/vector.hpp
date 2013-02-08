@@ -14,7 +14,7 @@
 #include "LLPack/utils/extio.hpp"
 #include "LLPack/utils/candy.hpp"
 
-namespace PatTk
+namespace cat_tree
 {
 
   template <typename numeric>
