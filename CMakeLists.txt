@@ -177,6 +177,7 @@ set(CMAKE_CXX_FLAGS_GPROF "-O1 -pg")
 
 ADD_EXECUTABLE(setup experiment/setup.cpp)
 ADD_EXECUTABLE(plant experiment/plant.cpp)
+ADD_EXECUTABLE(exp experiment/exp.cpp)
 
 
 

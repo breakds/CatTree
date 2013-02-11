@@ -54,6 +54,7 @@ int main( int argc, char **argv )
     }
   }
   printf( "\n" );
+  printf( "label=%d\n", dataset.label[0] );
   dataset.write( env["feature-data-output"].c_str() );
   Done( "written to %s.", env["feature-data-output"].c_str() );
   return 0;
