@@ -131,7 +131,7 @@ int main( int argc, char **argv )
     if ( -1 == inverseMap[a] || -1 == inverseMap[b] ) {
       continue;
     }
-    patchPairs.push_back( std::make_pair( a, b ) );
+    patchPairs.push_back( std::make_pair( inverseMap[a], inverseMap[b] ) );
     w.push_back( ExpConv( dist, sigma ) );
   }
   END_WITH( in );
@@ -192,6 +192,7 @@ int main( int argc, char **argv )
     }
     progress( 1, 1, "query" );
     printf( "\n" );
+
   }
   
   /* pair_to_l */
@@ -201,7 +202,7 @@ int main( int argc, char **argv )
     for ( auto& ele : patchPairs ) {
       std::unordered_set<int> hash;
       {
-        int i = inverseMap[ele.first];
+        int i = ele.first;
         auto& _to_l = m_to_l.getToSet( i );
         for ( auto& item : _to_l ) {
           if ( hash.end() == hash.find( item.first ) ) {
@@ -212,7 +213,7 @@ int main( int argc, char **argv )
       }
 
       {
-        int j = inverseMap[ele.second];
+        int j = ele.second;
         auto& _to_l = m_to_l.getToSet( j );
         for ( auto& item : _to_l ) {
           if ( hash.end() == hash.find( item.first ) ) {
@@ -315,8 +316,8 @@ int main( int argc, char **argv )
     }
 
     Info( "labeled: %d/%ld (%.2lf)", l_count, labeled.size(), static_cast<double>( l_count * 100 ) / labeled.size() );
-    Info( "unlabeled: %d/%ld (%.2lf)", l_count, unlabeled.size(), static_cast<double>( l_count * 100 ) / unlabeled.size() );
-    Info( "testing: %d/%ld (%.2lf)", l_count, testing.size(), static_cast<double>( l_count * 100 ) / testing.size() );
+    Info( "unlabeled: %d/%ld (%.2lf)", u_count, unlabeled.size(), static_cast<double>( u_count * 100 ) / unlabeled.size() );
+    Info( "testing: %d/%ld (%.2lf)", t_count, testing.size(), static_cast<double>( t_count * 100 ) / testing.size() );
   }
   
   
