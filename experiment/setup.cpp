@@ -1,7 +1,9 @@
 #include <vector>
 #include <string>
+#include <tuple>
 #include "LLPack/utils/extio.hpp"
 #include "LLPack/utils/Environment.hpp"
+#include "LLPack/algorithms/heap.hpp"
 #include "../data/Label.hpp"
 #include "../data/DataSet.hpp"
 
@@ -54,8 +56,41 @@ int main( int argc, char **argv )
     }
   }
   printf( "\n" );
-  printf( "label=%d\n", dataset.label[0] );
   dataset.write( env["feature-data-output"].c_str() );
   Done( "written to %s.", env["feature-data-output"].c_str() );
+
+  if ( 0 != env["generate-knn-pairs"].toInt() ) {
+    std::vector<std::tuple<int,int,double> > pairs;
+    pairs.clear();
+    for ( int i=0; i<dataset.size()-1; i++ ) {
+      heap<double,int> ranker( env["k-for-knn"].toInt() );
+      for ( int j=i+1; j<dataset.size(); j++ ) {
+        ranker.add( dist_l2( &dataset.feat[i][0], &dataset.feat[j][0], dataset.dim ), j );
+      }
+      for ( int j=0; j<ranker.len; j++ ) {
+        pairs.push_back( std::make_tuple( i, ranker[j], ranker(j) ) );
+      }
+
+      if ( i == dataset.size() - 1 || 0 == i % 100 ) {
+        progress( i + 1, dataset.size() - 1, "knn" );
+      }
+    }
+    printf( "\n" );
+
+
+    WITH_OPEN( out, env["knn-output"].c_str(), "w" );
+    int pairNum = static_cast<int>( pairs.size() );
+    fwrite( &pairNum, sizeof(int), 1, out );
+    for ( auto& t : pairs ) {
+      fwrite( &std::get<0>( t ), sizeof(int), 1, out );
+      fwrite( &std::get<1>( t ), sizeof(int), 1, out );
+      fwrite( &std::get<2>( t ), sizeof(double), 1, out );
+    }
+    END_WITH( out );
+    Done( "write nearest pairs." );
+  }
+    
+
+
   return 0;
 }

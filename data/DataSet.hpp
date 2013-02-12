@@ -31,7 +31,7 @@ namespace cat_tree
       label.resize( len );
       for ( int i=0; i<len; i++ ) {
         feat[i].resize( dim );
-        fread( &feat[i][0], sizeof(dataType), 1, in );
+        fread( &feat[i][0], sizeof(dataType), dim, in );
         fread( &label[i], sizeof(int), 1, in );
         if ( 0 == i % 100 || i == len - 1 ) {
           progress( i + 1, len, "loading features" );

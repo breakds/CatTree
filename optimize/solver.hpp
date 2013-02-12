@@ -460,6 +460,61 @@ namespace cat_tree
     
     }
 
+  public:
+
+    void operator()( int numL1, int numU1, int L1,
+                     const Bipartite *m_to_l1,
+                     const Bipartite *pair_to_l1,
+                     const std::vector<std::pair<int,int> > *patchPairs1,
+                     const double *w1,
+                     const double *P1, double *q1 )
+    {
+
+      K = LabelSet::classes;
+      L = L1;
+      N = static_cast<int>( patchPairs1->size() );
+      numL = numL1;
+      numU = numU1;
+
+      P = P1;
+      w = w1;
+      q = q1;
+      d = new double[N*K];
+      D = new double[(numL + numU) * K];
+
+      pair_to_l = pair_to_l1;
+      m_to_l = m_to_l1;
+      patchPairs = patchPairs1;
+
+    
+
+      // Update D(m)'s
+      for ( int m=0; m<numL; m++ ) {
+        update_D(m);
+      }
+
+      // update d(n)'s
+      for ( int n=0; n<N; n++ ) {
+        update_d(n);
+      }
+
+    
+      for (int iter=0; iter<options.maxIter; iter++ ) {
+
+        // Update q(l)'s
+        for ( int l=0; l<L; l++ ) {
+          update_q(l);
+        }
+
+        Info( "Iteration %d - Energy: %.5lf\n", iter, total_energy() );
+      
+      }
+
+      DeleteToNullWithTestArray( D );
+      DeleteToNullWithTestArray( d );
+    }
+
+
   };
 }
 

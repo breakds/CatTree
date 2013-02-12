@@ -67,7 +67,8 @@ namespace cat_tree
       }
     }
 
-    int GetClass( const string& str ) {
+    int GetClass( const string& str )
+    {
       // search for termination character
       int slashpos = str.find_first_of( '/' );
       if ( -1 == slashpos ) {
@@ -75,5 +76,11 @@ namespace cat_tree
       }
       return _to_id[str.substr( 0, slashpos )];
     }
+
+    inline double GetWeight( int id )
+    {
+      return wt[id];
+    }
+     
   };
 }

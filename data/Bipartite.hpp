@@ -13,7 +13,7 @@ using std::vector;
 using std::pair;
 using std::make_pair;
 
-namespace PatTk
+namespace cat_tree
 {
   class Bipartite
   {
