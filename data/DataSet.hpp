@@ -5,12 +5,32 @@
 #include <vector>
 #include "LLPack/utils/extio.hpp"
 #include "LLPack/utils/candy.hpp"
+#include "LLPack/algorithms/list.hpp"
 
 namespace cat_tree
 {
   template <typename dataType>
   class DataSet
   {
+
+  public:
+    class SubView
+    {
+    private:
+      SubView() {}
+
+    public:
+      SubListView<std::vector<std::vector<dataType> > > feat;
+      SubListView<std::vector<int> > label;
+      SubView( const DataSet& dataset, const std::vector<int>& idx )
+        : feat(dataset.feat, idx), label(dataset.label, idx) {}
+
+      inline int size() const
+      {
+        return static_cast<int>( feat.size() );
+      }
+      
+    };
   public:
     std::vector<std::vector<dataType> > feat;
     std::vector<int> label;
@@ -74,4 +94,5 @@ namespace cat_tree
     }
     
   };
+
 }

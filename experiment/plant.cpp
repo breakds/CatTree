@@ -28,8 +28,8 @@ int main( int argc, char **argv )
 
   typename SimpleKernel<std::vector<float>, BinaryOnAxis>::Options options;
   options.dim = dataset.dim;
-  options.converge = 0.001;
-  options.stopNum = 3;
+  options.converge = 0.0;
+  options.stopNum = 1;
   
   Forest<float,BinaryOnAxis> forest;
   forest.grow<SimpleKernel>( env["forest-size"],
@@ -38,6 +38,8 @@ int main( int argc, char **argv )
                              env["propotion-per-tree"].toDouble() );
   
   printf( "nodeNum: %d\n", forest.nodeNum() );
+  printf( "leafNum: %d\n", forest.levelSize(100) );
+  
   forest.write( env["forest-output-dir"] );
   Done( "forest written to %s", env["forest-output-dir"].c_str() );
   return 0;

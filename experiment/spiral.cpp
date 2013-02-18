@@ -15,56 +15,6 @@ using namespace EnvironmentVariable;
 using namespace ran_forest;
 using namespace cat_tree; 
 
-template <typename T>
-void partition( DataSet<T> &data, std::vector<int> &fed,
-                std::vector<int> &extended, float ratio = 0.5 )
-{
-  std::vector<std::vector<int> > classified;
-  classified.resize( LabelSet::classes );
-  for ( auto& ele : classified ) {
-    ele.clear();
-  }
-  
-  for ( auto& ele : fed ) {
-    classified[data.label[ele]].push_back( ele );
-  }
-
-  fed.clear();
-  extended.clear();
-
-
-  
-  for ( auto& item : classified ) {
-    int n = static_cast<int>( item.size() );
-    int k = static_cast<int>( n * ratio );
-    std::vector<int> selected = rndgen::randperm( n, k );
-    std::vector<int> mask( item.size(), 0 );
-    for ( auto& ele : selected ) {
-      mask[ele] = 1;
-      fed.push_back( item[ele] );
-    }
-    
-    for ( int i=0; i<n; i++ ) {
-      if ( 0 == mask[i] ) {
-        extended.push_back( item[i] );
-      }
-    }
-  }
-
-
-}
-
-
-inline double ExpConv( double dist, double delta )
-{
-  return exp( - dist / delta );
-}
-
-
-
-                
-
-
 int main( int argc, char **argv )
 {
   if ( argc < 2 ) {
@@ -84,14 +34,42 @@ int main( int argc, char **argv )
   printf( "nodeNum: %d\n", box.forest.nodeNum() );
 
 
-
-  
   /* generate random partition */
-  std::vector<int> testing = rndgen::seq( box.dataset.size() );
   std::vector<int> labeled;
   std::vector<int> unlabeled;
-  partition( box.dataset, testing, labeled, env["testing-ratio"].toDouble() );
-  partition( box.dataset, labeled, unlabeled, env["labeled-ratio"].toDouble() );
+  std::vector<int> testing;
+  std::vector<bool> masks;
+
+  masks.resize( box.dataset.size(), false );
+
+  WITH_OPEN( in, env["labeled"].c_str(), "r" );
+  int n = 0;
+  fread( &n, sizeof(int), 1, in );
+  labeled.resize(n);
+  fread( &labeled[0], sizeof(int), n, in );
+  for ( auto& ele : labeled ) {
+    masks[ele] = true;
+  }
+  END_WITH( in );
+
+  WITH_OPEN( in, env["testing"].c_str(), "r" );
+  int n = 0;
+  fread( &n, sizeof(int), 1, in );
+  testing.resize(n);
+  fread( &testing[0], sizeof(int), n, in );
+  for ( auto& ele : testing ) {
+    masks[ele] = true;
+  }
+  END_WITH( in );
+
+  for ( int i=0; i<box.dataset.size(); i++ ) {
+    if ( !masks[i] ) {
+      unlabeled.push_back( i );
+    }
+  }
+
+  
+  
   Info( "labeled: %ld", labeled.size() );
   Info( "unlabeled: %ld", unlabeled.size() );
   Info( "testing: %ld", testing.size() );
@@ -122,7 +100,6 @@ int main( int argc, char **argv )
   int a = 0;
   int b = 0;
   double dist = 0.0;
-  double sigma = env["sigma"].toDouble();
   for ( int i=0; i<n; i++ ) {
     fread( &a, sizeof(int), 1, in );
     fread( &b, sizeof(int), 1, in );
@@ -131,14 +108,10 @@ int main( int argc, char **argv )
       continue;
     }
     patchPairs.push_back( std::make_pair( inverseMap[a], inverseMap[b] ) );
-    w.push_back( ExpConv( dist, sigma ) );
+    w.push_back( dist );
   }
   END_WITH( in );
-
-
-
-
-
+  
   
   
   /* 1. numL = num of labeled features
@@ -165,7 +138,7 @@ int main( int argc, char **argv )
   {
     int m = 0;
     for ( auto& ele : labeled ) {
-      auto res = box.forest.query( box.dataset.feat[ele], 4 );
+      auto res = box.forest.query( box.dataset.feat[ele] );
       double alpha = 1.0 / res.size();
       for ( auto& item : res ) {
         m_to_l.add( m, item, alpha );
@@ -179,7 +152,7 @@ int main( int argc, char **argv )
     }
 
     for ( auto& ele : unlabeled ) {
-      auto res = box.forest.query( box.dataset.feat[ele], 4 );
+      auto res = box.forest.query( box.dataset.feat[ele] );
       double alpha = 1.0 / res.size();
       for ( auto& item : res ) {
         m_to_l.add( m, item, alpha );
@@ -191,8 +164,8 @@ int main( int argc, char **argv )
     }
     progress( 1, 1, "query" );
     printf( "\n" );
-
   }
+
   
   /* pair_to_l */
   Bipartite pair_to_l( static_cast<int>( patchPairs.size() ), box.forest.nodeNum() );
@@ -238,12 +211,12 @@ int main( int argc, char **argv )
 
   Info( "solving..." );
   box.initVoters( labeled );
-  solve( numL, numU, box.forest.nodeNum(),
-         &m_to_l, &pair_to_l, &patchPairs,
-         &w[0], &P[0], &box.q[0] );
+  // solve( numL, numU, box.forest.nodeNum(),
+  //        &m_to_l, &pair_to_l, &patchPairs,
+  //        &w[0], &P[0], &box.q[0] );
   Done( "Solved" );
 
-
+  
   /* Voting */
   {
 
