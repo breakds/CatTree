@@ -211,9 +211,9 @@ int main( int argc, char **argv )
 
   Info( "solving..." );
   box.initVoters( labeled );
-  // solve( numL, numU, box.forest.nodeNum(),
-  //        &m_to_l, &pair_to_l, &patchPairs,
-  //        &w[0], &P[0], &box.q[0] );
+  solve( numL, numU, box.forest.nodeNum(),
+         &m_to_l, &pair_to_l, &patchPairs,
+         &w[0], &P[0], &box.q[0] );
   Done( "Solved" );
 
   
@@ -221,11 +221,12 @@ int main( int argc, char **argv )
   {
 
     int l_count = box.test( labeled );
-    int u_count = box.test( unlabeled );
-    int t_count = box.test( testing );
     
     Info( "labeled: %d/%ld (%.2lf)", l_count, labeled.size(), static_cast<double>( l_count * 100 ) / labeled.size() );
+    
+    int u_count = box.test( unlabeled );
     Info( "unlabeled: %d/%ld (%.2lf)", u_count, unlabeled.size(), static_cast<double>( u_count * 100 ) / unlabeled.size() );
+    int t_count = box.test( testing );
     Info( "testing: %d/%ld (%.2lf)", t_count, testing.size(), static_cast<double>( t_count * 100 ) / testing.size() );
   }
   

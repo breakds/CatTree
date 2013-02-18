@@ -24,11 +24,14 @@ int main( int argc, char **argv )
   LabelSet::Summary();
 
   DataSet<float> dataset( env["feature-data-input"] );
+  
+
+
 
 
   typename SimpleKernel<std::vector<float>, BinaryOnAxis>::Options options;
   options.dim = dataset.dim;
-  options.converge = 0.0;
+  options.converge = 0.01;
   options.stopNum = 1;
   
   Forest<float,BinaryOnAxis> forest;
@@ -39,8 +42,9 @@ int main( int argc, char **argv )
   
   printf( "nodeNum: %d\n", forest.nodeNum() );
   printf( "leafNum: %d\n", forest.levelSize(100) );
+
   
-  forest.write( env["forest-output-dir"] );
+        forest.write( env["forest-output-dir"] );
   Done( "forest written to %s", env["forest-output-dir"].c_str() );
   return 0;
 }
