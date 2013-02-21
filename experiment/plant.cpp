@@ -32,7 +32,7 @@ int main( int argc, char **argv )
   typename SimpleKernel<std::vector<float>, BinaryOnAxis>::Options options;
   options.dim = dataset.dim;
   options.converge = 0.01;
-  options.stopNum = 1;
+  options.stopNum = 5;
   
   Forest<float,BinaryOnAxis> forest;
   forest.grow<SimpleKernel>( env["forest-size"],

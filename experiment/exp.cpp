@@ -95,7 +95,7 @@ int main( int argc, char **argv )
   Info( "labeled: %ld", labeled.size() );
   Info( "unlabeled: %ld", unlabeled.size() );
   Info( "testing: %ld", testing.size() );
-
+  
   /* creating index inverse map */
   std::vector<int> inverseMap( box.dataset.size() );
   {
@@ -156,104 +156,124 @@ int main( int argc, char **argv )
   int numU = static_cast<int>( unlabeled.size() );
   int M = numU + numL;
 
-  
-  
-  /* forest query */
-  Bipartite m_to_l( M, box.forest.nodeNum() );
+
+  /* fill P */
   std::vector<double> P( numL * LabelSet::classes );
   memset( &P[0], 0, sizeof(double) * numL * LabelSet::classes );
   {
     int m = 0;
     for ( auto& ele : labeled ) {
-      auto res = box.forest.query( box.dataset.feat[ele], 4 );
-      double alpha = 1.0 / res.size();
-      for ( auto& item : res ) {
-        m_to_l.add( m, item, alpha );
-      }
-      
       P[ m * LabelSet::classes + box.dataset.label[ele] ] = 1.0;
       m++;
-      if ( 0 == m % 100 ) {
-        progress( m, labeled.size() + unlabeled.size(), "query" );
-      }
     }
-
-    for ( auto& ele : unlabeled ) {
-      auto res = box.forest.query( box.dataset.feat[ele], 4 );
-      double alpha = 1.0 / res.size();
-      for ( auto& item : res ) {
-        m_to_l.add( m, item, alpha );
-      }
-      m++;
-      if ( 0 == m % 100 ) {
-        progress( m, labeled.size() + unlabeled.size(), "query" );
-      }
-    }
-    progress( 1, 1, "query" );
-    printf( "\n" );
-
   }
   
-  /* pair_to_l */
-  Bipartite pair_to_l( static_cast<int>( patchPairs.size() ), box.forest.nodeNum() );
-  {
-    int n = 0;
-    for ( auto& ele : patchPairs ) {
-      std::unordered_set<int> hash;
-      {
-        int i = ele.first;
-        auto& _to_l = m_to_l.getToSet( i );
-        for ( auto& item : _to_l ) {
-          if ( hash.end() == hash.find( item.first ) ) {
-            pair_to_l.add( n, item.first, 1.0 );
-            hash.insert( item.first );
-          }
-        }
-      }
-
-      {
-        int j = ele.second;
-        auto& _to_l = m_to_l.getToSet( j );
-        for ( auto& item : _to_l ) {
-          if ( hash.end() == hash.find( item.first ) ) {
-            pair_to_l.add( n, item.first, 1.0 );
-            hash.insert( item.first );
-          }
-        }
-      }
-      n++;
-      if ( 0 == n % 100 ) {
-        progress( n, patchPairs.size(), "build pair_to_l" );
-      }
-    }
-    progress( 1, 1, "build pair_to_l" );
-    printf( "\n" );
-  }
-
   /* solve */
   Solver solve;
   solve.options.beta = env["beta"].toDouble();
   solve.options.maxIter = env["max-iter"];
   
 
-  Info( "solving..." );
-  box.initVoters( labeled );
-  solve( numL, numU, box.forest.nodeNum(),
-         &m_to_l, &pair_to_l, &patchPairs,
-         &w[0], &P[0], &box.q[0] );
-  Done( "Solved" );
+  std::vector<int> active;
 
+  for ( int level=2; level<box.forest.depth(); level++ ) {
 
-  /* Voting */
-  {
-
-    int l_count = box.test( labeled );
-    int u_count = box.test( unlabeled );
-    int t_count = box.test( testing );
+    if ( active.empty() ) {
+      
+    }
     
-    Info( "labeled: %d/%ld (%.2lf)", l_count, labeled.size(), static_cast<double>( l_count * 100 ) / labeled.size() );
-    Info( "unlabeled: %d/%ld (%.2lf)", u_count, unlabeled.size(), static_cast<double>( u_count * 100 ) / unlabeled.size() );
-    Info( "testing: %d/%ld (%.2lf)", t_count, testing.size(), static_cast<double>( t_count * 100 ) / testing.size() );
+    /* forest query */
+    Bipartite m_to_l( M, box.forest.nodeNum() );
+    {
+      int m = 0;
+      for ( auto& ele : labeled ) {
+        auto res = box.forest.query( box.dataset.feat[ele], level );
+        double alpha = 1.0 / res.size();
+        for ( auto& item : res ) {
+          m_to_l.add( m, item, alpha );
+        }
+        m++;
+        if ( 0 == m % 100 ) {
+          progress( m, labeled.size() + unlabeled.size(), "query" );
+        }
+      }
+
+      for ( auto& ele : unlabeled ) {
+        auto res = box.forest.query( box.dataset.feat[ele], -1 );
+        double alpha = 1.0 / res.size();
+        for ( auto& item : res ) {
+          m_to_l.add( m, item, alpha );
+        }
+        m++;
+        if ( 0 == m % 100 ) {
+          progress( m, labeled.size() + unlabeled.size(), "query" );
+        }
+      }
+      progress( 1, 1, "query" );
+      printf( "\n" );
+
+    }
+
+
+
+    /* pair_to_l */
+    Bipartite pair_to_l( static_cast<int>( patchPairs.size() ), box.forest.nodeNum() );
+    {
+      int n = 0;
+      for ( auto& ele : patchPairs ) {
+        std::unordered_set<int> hash;
+        {
+          int i = ele.first;
+          auto& _to_l = m_to_l.getToSet( i );
+          for ( auto& item : _to_l ) {
+            if ( hash.end() == hash.find( item.first ) ) {
+              pair_to_l.add( n, item.first, 1.0 );
+              hash.insert( item.first );
+            }
+          }
+        }
+
+        {
+          int j = ele.second;
+          auto& _to_l = m_to_l.getToSet( j );
+          for ( auto& item : _to_l ) {
+            if ( hash.end() == hash.find( item.first ) ) {
+              pair_to_l.add( n, item.first, 1.0 );
+              hash.insert( item.first );
+            }
+          }
+        }
+        n++;
+        if ( 0 == n % 100 ) {
+          progress( n, patchPairs.size(), "build pair_to_l" );
+        }
+      }
+      progress( 1, 1, "build pair_to_l" );
+      printf( "\n" );
+    }
+
+
+    Info( "Processing level %d", level );
+    // box.initVoters( labeled );
+    solve( numL, numU, box.forest.nodeNum(),
+           &m_to_l, &pair_to_l, &patchPairs,
+           &w[0], &P[0], &box.q[0] );
+    Done( "Solved." );
+
+
+    /* Voting */
+    {
+      
+      printf( "========== test ==========\n" );
+      int l_count = box.test( labeled, level );
+      Info( "labeled: %d/%ld (%.2lf)", l_count, labeled.size(), static_cast<double>( l_count * 100 ) / labeled.size() );
+
+      int u_count = box.test( unlabeled, level );    
+      Info( "unlabeled: %d/%ld (%.2lf)", u_count, unlabeled.size(), static_cast<double>( u_count * 100 ) / unlabeled.size() );
+
+      int t_count = box.test( testing, level );    
+      Info( "testing: %d/%ld (%.2lf)", t_count, testing.size(), static_cast<double>( t_count * 100 ) / testing.size() );
+    }
   }
   
   

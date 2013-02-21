@@ -87,8 +87,8 @@ namespace cat_tree
   
 
     /* ---------- D(m) ---------- */
-
     // D(m) = sum alpha(l,m)*q(l,m) - P(m)
+    // logic checked
     inline void update_D( int m )
     {
       auto& _to_l = m_to_l->getToSet( m );
@@ -134,12 +134,13 @@ namespace cat_tree
     /* ---------- d(n) ---------- */
 
     // d(n) = sum_l (alpha(i_n,l) - alpha(j_n,l)) * q(l)
+    // logic checked
     inline void update_d( int n )
     {
       // alias t <- d(n)
       double *t = d + n * K;
       zero( t, K );
-    
+      
       { 
         // handle i's side
         int i = (*patchPairs)[n].first;
@@ -193,6 +194,7 @@ namespace cat_tree
   
     /* ---------- Energy Computation ---------- */
 
+    // logic checked
     inline double total_energy()
     {
 
@@ -217,7 +219,7 @@ namespace cat_tree
       }
 
       // debugging:
-      printf( "%.6lf + %.6lf\n", energy_first, energy_second );
+      printf( "%.6lf vs. %.6lf\n", energy_first, energy_second );
     
       return energy_first + energy_second * options.beta;
     }
@@ -225,7 +227,7 @@ namespace cat_tree
     /* Restricted Energy on q(l):
      * sum_{m \in l} D(m)^2 + \beta \sum_{n \in l} w(i_n,j_n) * d(n)^2
      */
-
+    // logic checked
     inline double restrict_energy( int l )
     {
 
@@ -255,6 +257,7 @@ namespace cat_tree
     /* Restricted Energy on q(l) replaced with q_l
      * sum_{m \in l} D(m)^2 + \beta \sum_{n \in l} w(i_n,j_n) * d(n)^2
      */
+    
     inline double restrict_energy( int l, const double *q_l )
     {
       auto& _to_m = m_to_l->getFromSet( l );
@@ -301,7 +304,8 @@ namespace cat_tree
 
 
     /* ---------- Restricted Derivative ---------- */
-  
+
+    // logic checked
     inline void restrict_deriv( int l, double *deriv )
     {
 
@@ -487,7 +491,7 @@ namespace cat_tree
       patchPairs = patchPairs1;
 
     
-
+      
       // Update D(m)'s
       for ( int m=0; m<numL; m++ ) {
         update_D(m);

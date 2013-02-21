@@ -27,7 +27,7 @@ namespace cat_tree
       for ( auto& ele : q ) ele = LabelSet::inv;
     }
 
-    void initVoters( std::vector<int> labeled )
+    void initVoters( std::vector<int> labeled, int level = -1 )
     {
       std::unordered_set<int> set;
       for ( auto& ele : labeled ) set.insert( ele );
@@ -51,12 +51,12 @@ namespace cat_tree
       }
     }
 
-    int test( std::vector<int>& idx  )
+    int test( std::vector<int>& idx, int level = -1  )
     {
       double vote[LabelSet::classes];
       int count = 0;
       for ( auto& ele : idx ) {
-        auto res = forest.query( dataset.feat[ele] );
+        auto res = forest.query( dataset.feat[ele], level );
         memset( vote, 0, sizeof(double) * LabelSet::classes );
         for ( auto& item : res ) {
           addto( vote, &q[item * LabelSet::classes], LabelSet::classes );

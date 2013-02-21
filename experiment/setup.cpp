@@ -70,13 +70,13 @@ int main( int argc, char **argv )
       for ( int j=0; j<ranker.len; j++ ) {
         pairs.push_back( std::make_tuple( i, ranker[j], ranker(j) ) );
       }
-
+      
       if ( i == dataset.size() - 1 || 0 == i % 100 ) {
         progress( i + 1, dataset.size() - 1, "knn" );
       }
     }
     printf( "\n" );
-
+    
 
     WITH_OPEN( out, env["knn-output"].c_str(), "w" );
     int pairNum = static_cast<int>( pairs.size() );
