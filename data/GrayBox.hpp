@@ -51,6 +51,18 @@ namespace cat_tree
       }
     }
 
+    void levelDown( std::vector<int>& active ) 
+    {
+      std::vector<int> tmp;
+      for ( auto& ele : active ) {
+        for ( auto& c : forest[ele].node->getChild() ) {
+          memcpy( &q[c->nodeID*LabelSet::classes], &q[ele*LabelSet::classes], sizeof(double) * LabelSet::classes );
+          tmp.push_back( c->nodeID );
+        }
+      }
+      active.swap( tmp );
+    }
+
     int test( std::vector<int>& idx, int level = -1  )
     {
       double vote[LabelSet::classes];

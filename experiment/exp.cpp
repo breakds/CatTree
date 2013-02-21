@@ -178,8 +178,12 @@ int main( int argc, char **argv )
 
   for ( int level=2; level<box.forest.depth(); level++ ) {
 
+    Info( "Processing level %d", level );
+
     if ( active.empty() ) {
-      
+      box.forest.collectLevel( level, active );
+    } else {
+      box.levelDown( active );
     }
     
     /* forest query */
@@ -253,7 +257,6 @@ int main( int argc, char **argv )
     }
 
 
-    Info( "Processing level %d", level );
     // box.initVoters( labeled );
     solve( numL, numU, box.forest.nodeNum(),
            &m_to_l, &pair_to_l, &patchPairs,
