@@ -202,7 +202,6 @@ namespace cat_tree
 
       // sum_m D(m)^2
       double *Dp = D;
-      printf( "numU: %d\n", numU );
       for ( int m=0; m<numU; m++ ) {
         energy_first += norm2( Dp, K );
         Dp += K;

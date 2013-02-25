@@ -62,9 +62,6 @@ inline double ExpConv( double dist, double delta )
 
 
 
-                
-
-
 int main( int argc, char **argv )
 {
   if ( argc < 2 ) {
@@ -170,13 +167,20 @@ int main( int argc, char **argv )
   
   /* solve */
   Solver solve;
-  solve.options.beta = env["beta"].toDouble();
+  int depth = box.forest.depth();
+  Info( "Tree Depth: %d\n", depth );
+  double beta_step = ( env["beta-end"].toDouble() - env["beta-begin"].toDouble() ) / ( depth - env["start-level"].toInt() - 1);
+  solve.options.beta = env["beta-begin"].toDouble();
+
+
   solve.options.maxIter = env["max-iter"];
   
 
   std::vector<int> active;
 
-  for ( int level=2; level<box.forest.depth(); level++ ) {
+  WITH_OPEN( out, env["output-file"].c_str(), "w" );
+  fprintf( out, "%.2lf\n%.2lf\n", env["beta-begin"].toDouble(), env["beta-end"].toDouble() );
+  for ( int level=env["start-level"]; level<box.forest.depth(); level++ ) {
 
     Info( "Processing level %d", level );
 
@@ -185,7 +189,7 @@ int main( int argc, char **argv )
     } else {
       box.levelDown( active );
     }
-    
+
     /* forest query */
     Bipartite m_to_l( M, box.forest.nodeNum() );
     {
@@ -256,12 +260,12 @@ int main( int argc, char **argv )
       printf( "\n" );
     }
 
-
-    // box.initVoters( labeled );
+    Info( "Beta = %.3lf\n", solve.options.beta );
     solve( numL, numU, box.forest.nodeNum(),
            &m_to_l, &pair_to_l, &patchPairs,
            &w[0], &P[0], &box.q[0] );
     Done( "Solved." );
+    solve.options.beta += beta_step;
 
 
     /* Voting */
@@ -270,15 +274,18 @@ int main( int argc, char **argv )
       printf( "========== test ==========\n" );
       int l_count = box.test( labeled, level );
       Info( "labeled: %d/%ld (%.2lf)", l_count, labeled.size(), static_cast<double>( l_count * 100 ) / labeled.size() );
-
       int u_count = box.test( unlabeled, level );    
       Info( "unlabeled: %d/%ld (%.2lf)", u_count, unlabeled.size(), static_cast<double>( u_count * 100 ) / unlabeled.size() );
 
       int t_count = box.test( testing, level );    
       Info( "testing: %d/%ld (%.2lf)", t_count, testing.size(), static_cast<double>( t_count * 100 ) / testing.size() );
+      fprintf( out, "%3.2lf\t%3.2lf\t%3.2lf\n",
+               static_cast<double>( l_count * 100 ) / labeled.size(),
+               static_cast<double>( u_count * 100 ) / unlabeled.size(),
+               static_cast<double>( t_count * 100 ) / testing.size() );
     }
   }
-  
+  END_WITH( out );
   
   return 0;
 }

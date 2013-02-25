@@ -51,6 +51,27 @@ namespace cat_tree
       }
     }
 
+    void initVoters()
+    {
+      for ( int i=0; i<forest.nodeNum(); i++ ) {
+        if ( forest[i].isLeaf() ) {
+          double vote[LabelSet::classes];
+          memset( vote, 0, sizeof(double) * LabelSet::classes );
+          int count = 0;
+          for ( auto& ele : forest[i].store ) {
+            vote[dataset.label[ele]] += 1.0;
+            count++;
+          }
+          if ( 0 < count ) {
+            for ( int k=0; k<LabelSet::classes; k++ ) {
+              q[i*LabelSet::classes+k] = vote[k] / count;
+            }
+          }
+        }
+      }
+    }
+
+
     void levelDown( std::vector<int>& active ) 
     {
       std::vector<int> tmp;
