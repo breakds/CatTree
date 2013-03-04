@@ -175,13 +175,14 @@ set(CMAKE_CXX_FLAGS_GPROF "-O1 -pg")
 
 
 
-# ADD_EXECUTABLE(setup experiment/setup.cpp)
-# ADD_EXECUTABLE(plant experiment/plant.cpp)
+ADD_EXECUTABLE(setup experiment/setup.cpp)
+ADD_EXECUTABLE(plant experiment/plant.cpp)
+ADD_EXECUTABLE(poweriter experiment/poweriter.cpp)
 # ADD_EXECUTABLE(exp experiment/exp.cpp)
-# ADD_EXECUTABLE(climbing experiment/climbing.cpp)
+ADD_EXECUTABLE(climbing experiment/climbing.cpp)
 
-ADD_EXECUTABLE(camvid experiment/camvid.cpp)
-TARGET_LINK_LIBRARIES(camvid ${OPENCV})
+# ADD_EXECUTABLE(camvid experiment/camvid.cpp)
+# TARGET_LINK_LIBRARIES(camvid ${OPENCV})
 
 
 # TARGET_LINK_LIBRARIES(exp "-static")

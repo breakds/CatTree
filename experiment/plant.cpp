@@ -28,7 +28,7 @@ int main( int argc, char **argv )
 
 
 
-  if ( false ) {
+  if ( true ) {
     typename SimpleKernel<std::vector<float>, BinaryOnAxis>::Options options;
     options.dim = dataset.dim;
     options.converge = 0.01;

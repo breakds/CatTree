@@ -75,5 +75,15 @@ namespace cat_tree
     {
       return b_to_a[b];
     }
+    
+    inline int sizeA() const 
+    {
+      return static_cast<int>( a_to_b.size() );
+    }
+
+    inline int sizeB() const 
+    {
+      return static_cast<int>( b_to_a.size() );
+    }
   };
 }
