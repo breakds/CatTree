@@ -77,7 +77,7 @@ int main( int argc, char **argv )
   LabelSet::Summary();
 
   /* loading dataset and forest */
-  GrayBox<float,BinaryOnSubspace> box( env["feature-data-input"], env["forest-dir"] );
+  GrayBox<float,BinaryOnAxis> box( env["feature-data-input"], env["forest-dir"] );
   printf( "nodeNum: %d\n", box.forest.nodeNum() );
   for ( int i=0; i<box.forest.depth(); i++ ) {
     printf( "%d: %d\n", i, box.forest.levelSize( i ) );

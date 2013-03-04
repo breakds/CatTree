@@ -81,7 +81,6 @@ int main( int argc, char **argv )
   dataset.write( env["feature-data-output"].c_str() );
   Done( "written to %s.", env["feature-data-output"].c_str() );
 
-  /*
   if ( 0 != env["generate-knn-pairs"].toInt() ) {
   std::vector<std::tuple<int,int,double> > pairs;
     pairs.clear();
@@ -112,28 +111,28 @@ int main( int argc, char **argv )
     END_WITH( out );
     Done( "write nearest pairs." );
   }
-  */
 
-  if ( 0 != env["feature-data-output"].c_str() ) {
-    std::vector<std::tuple<int,int,double> > pairs;
-    pairs.clear();
-    std::vector<std::vector<int> > categories( LabelSet::classes );
-    for ( int i=0; i<dataset.size(); i++ ) {
-      categories[dataset.label[i]].push_back( i );
-    }
-    for ( int j=0; j<LabelSet::classes; j++ ) {
-      BruteForceNN( dataset, categories[j], pairs );
-    }
-    WITH_OPEN( out, env["knn-output"].c_str(), "w" );
-    int pairNum = static_cast<int>( pairs.size() );
-    fwrite( &pairNum, sizeof(int), 1, out );
-    for ( auto& t : pairs ) {
-      fwrite( &std::get<0>( t ), sizeof(int), 1, out );
-      fwrite( &std::get<1>( t ), sizeof(int), 1, out );
-      fwrite( &std::get<2>( t ), sizeof(double), 1, out );
-    }
-    END_WITH( out );
-    Done( "write nearest pairs." );
-  }
+
+  // if ( 0 != env["feature-data-output"].c_str() ) {
+  //   std::vector<std::tuple<int,int,double> > pairs;
+  //   pairs.clear();
+  //   std::vector<std::vector<int> > categories( LabelSet::classes );
+  //   for ( int i=0; i<dataset.size(); i++ ) {
+  //     categories[dataset.label[i]].push_back( i );
+  //   }
+  //   for ( int j=0; j<LabelSet::classes; j++ ) {
+  //     BruteForceNN( dataset, categories[j], pairs );
+  //   }
+  //   WITH_OPEN( out, env["knn-output"].c_str(), "w" );
+  //   int pairNum = static_cast<int>( pairs.size() );
+  //   fwrite( &pairNum, sizeof(int), 1, out );
+  //   for ( auto& t : pairs ) {
+  //     fwrite( &std::get<0>( t ), sizeof(int), 1, out );
+  //     fwrite( &std::get<1>( t ), sizeof(int), 1, out );
+  //     fwrite( &std::get<2>( t ), sizeof(double), 1, out );
+  //   }
+  //   END_WITH( out );
+  //   Done( "write nearest pairs." );
+  // }
   return 0;
 }

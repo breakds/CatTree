@@ -3,7 +3,7 @@
 
 namespace cat_tree
 {
-  class Solver {
+  class Solver_V1 {
     /* Solver for objective function
      *           \sum_m      ( \sum_l alpha(m,l) * q(l) - P(m) )^2
      *  + \beta  \sum_{i,j}  w(i,j) [ \sum_l (alpha(i,l)-alpha(j,l)) q(l) ]^2
@@ -44,8 +44,8 @@ namespace cat_tree
   private:
 
     const double *P;
-    const double *w;
 
+    double *avg;
   
     double *q;
 
@@ -55,10 +55,7 @@ namespace cat_tree
     int K, L, N, numL, numU;
     
     const Bipartite *m_to_l;
-    const Bipartite *pair_to_l;
-  
-    const std::vector<std::pair<int,int> > *patchPairs;
-
+    const Bipartite *n_to_l;
 
   public:
     
@@ -133,65 +130,64 @@ namespace cat_tree
 
     /* ---------- d(n) ---------- */
 
-    // d(n) = sum_l (alpha(i_n,l) - alpha(j_n,l)) * q(l)
+    // d(n) = sum_l[alpha(i_n,l)*q(l)^2] - avg(n)^2
     // logic checked
     inline void update_d( int n )
     {
-      // alias t <- d(n)
-      double *t = d + n * K;
-      zero( t, K );
       
-      { 
-        // handle i's side
-        int i = (*patchPairs)[n].first;
-        auto& _to_l = m_to_l->getToSet( i );
-        for ( auto& ele : _to_l ) {
-          int l = ele.first;
-          double alpha = ele.second;
-          addScaledTo( t, q + l * K, K, alpha );
-        }
+      auto& _to_l = m_to_l->getToSet(n);
+      double *t = avg + n * K;
+      double avg[K];
+      zero( t, K );
+      d[n] = 0;
+      for ( auto& ele : _to_l ) {
+        int l = ele.first;
+        double alpha = ele.second;
+        d[n] += alpha * norm2( q + l * K, K );
+        addScaledTo( t, q + l * K, K, alpha );
       }
 
-      {
-        // handle j's side
-        int j = (*patchPairs)[n].second;
-        auto& _to_l = m_to_l->getToSet( j );
-        for ( auto& ele : _to_l ) {
-          int l = ele.first;
-          double alpha = ele.second;
-          minusScaledFrom( t, q + l * K, K, alpha );
-        }
-      }
+      d[n] -= norm2( t, K );
     }
 
-    inline void update_d( int n, int l, const double *q_l, double alpha_i, double alpha_j )
+    inline void update_d( int n, int l, const double *q_l, double alpha )
     {
-      double *t = d + n * K;
-      // d(n) = d(n) - alpha(i,l) * q(l) + alpha(i,l) * q_l
-      minusScaledFrom( t, q + l * K, K, alpha_i );
-      addScaledTo( t, q_l, K, alpha_i );
-    
-      // d(n) = d(n) + alpha(j,l) * q(l) - alpha(j,l) * q_l
-      addScaledTo( t, q + l * K, K, alpha_j );
-      minusScaledFrom( t, q_l, K, alpha_j );
+      double *t = avg + n * K;
+      // avg(n) = d(n) - alpha(i,l) * q(l) + alpha(i,l) * q_l
+
+      d[n] += norm2( t, K );
+      
+      minusScaledFrom( t, q + l * K, K, alpha );
+      addScaledTo( t, q_l, K, alpha );
+
+      d[n] -= norm2( t, K );
+
+      d[n] -= alpha * norm2( q + l * K, K );
+      d[n] += alpha * norm2( q_l, K );
+
     }
 
-    inline void altered_d( int n, int l, const double *q_l, double alpha_i, double alpha_j, double *dst )
+    inline double altered_d( int n, int l, const double *q_l, double alpha )
     {
-      copy( dst, d + n * K, K );
-    
-      // d(n) = d(n) - alpha(i,l) * q(l) + alpha(i,l) * q_l
-      minusScaledFrom( dst, q + l * K, K, alpha_i );
-      addScaledTo( dst, q_l, K, alpha_i );
-    
-      // d(n) = d(n) + alpha(j,l) * q(l) - alpha(j,l) * q_l
-      addScaledTo( dst, q + l * K, K, alpha_j );
-      minusScaledFrom( dst, q_l, K, alpha_j );
+      double res = d[n];
+
+      double t[K];
+      memcpy( t, avg + n * K, sizeof(double) * K );
+
+      res += norm2( t, K );
+
+      minusScaledFrom( t, q + l * K, K, alpha );
+      addScaledTo( t, q_l, K, alpha );
+
+      res -= norm2( t, K );
+      
+      res -= alpha * norm2( q + l * K, K );
+      res += alpha * norm2( q_l, K );
+      
+      return res;
+      
     }
 
-  
-
-  
     /* ---------- Energy Computation ---------- */
 
     // logic checked
@@ -211,10 +207,8 @@ namespace cat_tree
 
       // sum_n d(n)^2 * w(n)
       // where w(n) = w(i_n,j_n)
-      double *dp = d;
       for ( int n=0; n<N; n++ ) {
-        energy_second += norm2( dp, K ) * w[n];
-        dp += K;
+        energy_second += d[n];
       }
 
       // debugging:
@@ -231,7 +225,6 @@ namespace cat_tree
     {
 
       auto& _to_m = m_to_l->getFromSet( l );
-      auto& _to_n = pair_to_l->getFromSet( l );
     
     
       // energy_first = sum_{m \in l} D(m)^2
@@ -242,11 +235,12 @@ namespace cat_tree
       }
     
 
-      // energy_second = \sum_{n \in l} w(i_n,j_n) * d(n)^2
+      // energy_second = \sum_{n \in l} d(n)
+      auto& _to_n = n_to_l->getFromSet( l );
       double energy_second = 0.0;
       for ( auto& ele : _to_n ) {
         int n = ele.first;
-        energy_second += norm2( d + n * K, K ) * w[n];
+        energy_second += d(n);
       }
 
       return energy_first + energy_second * options.beta;
@@ -259,43 +253,31 @@ namespace cat_tree
     
     inline double restrict_energy( int l, const double *q_l )
     {
-      auto& _to_m = m_to_l->getFromSet( l );
-      auto& _to_n = pair_to_l->getFromSet( l );
 
-      std::unordered_map<int,double> alphas;
 
       double t[K];
 
       // energy_first = sum_{m \in l} altered_D(m)^2
+      auto& _to_m = m_to_l->getFromSet( l );
       double energy_first = 0.0;
       for ( auto& ele : _to_m ) {
         int m = ele.first;
         double alpha = ele.second;
         // map alpha and m
-        alphas[m] = alpha;
         altered_D( m, l, q_l, alpha, t );
         energy_first += norm2( t, K );
       }
     
 
-      // energy_second = \sum_{n \in l} w(i_n,j_n) * d(n)^2
       double energy_second = 0.0;
+      auto& _to_n = n_to_l->getFromSet( l );
+
       for ( auto& ele : _to_n ) {
         int n = ele.first;
-        int i = (*patchPairs)[n].first;
-        int j = (*patchPairs)[n].second;
-        double alpha_i = 0.0;
-        if ( alphas.end() != alphas.find(i) ) {
-          alpha_i = alphas[i];
-        }
-        double alpha_j = 0.0;
-        if ( alphas.end() != alphas.find(j) ) {
-          alpha_j = alphas[j];
-        }
-        altered_d( n, l, q_l, alpha_i, alpha_j, t );
-        energy_second += norm2( t, K ) * w[n];
+        double alpha = ele.second;
+        energy_second += altered_d( n, l, q_l, alpha );
       }
-
+      
       return energy_first + energy_second * options.beta;
     }
 
@@ -309,9 +291,9 @@ namespace cat_tree
     {
 
       zero( deriv, K );
-
-      std::unordered_map<int,double> alphas;
-    
+      
+      double t[K];
+      
       // deriv = sum_m alpha(l,m) * D(m)
       auto& _to_m = m_to_l->getFromSet( l );
       for ( auto& ele : _to_m ) {
@@ -321,22 +303,16 @@ namespace cat_tree
         alphas[m] = alpha;
         addScaledTo( deriv, D + m * K, K, alpha );
       }
-    
-      // deriv += beta * sum_n (alpha(i_n,l)-alpha(j_n,l)) * d(n) * w(n)
-      auto& _to_n = pair_to_l->getFromSet( l );
+      
+      // deriv += beta * sum_n [*alpha(n,l) ( q(l) - avg(n) )]
+      auto& _to_n = n_to_l->getFromSet( l );
       for ( auto& ele : _to_n ) {
         int n = ele.first;
-        int i = (*patchPairs)[n].first;
-        int j = (*patchPairs)[n].second;
-        double alpha_i = 0.0;
-        if ( alphas.end() != alphas.find(i) ) {
-          alpha_i = alphas[i];
-        }
-        double alpha_j = 0.0;
-        if ( alphas.end() != alphas.find(j) ) {
-          alpha_j = alphas[j];
-        }
-        addScaledTo( deriv, d + n * K, K, options.beta * (alpha_i - alpha_j) * w[n] );
+        double alpha = ele.second;
+
+        minus( q + l * K, avg + n * K, t );
+        
+        addScaledTo( deriv, t, K, options.beta * alpha );
       }
     }
 
@@ -475,14 +451,16 @@ namespace cat_tree
 
       K = LabelSet::classes;
       L = L1;
-      N = static_cast<int>( patchPairs1->size() );
       numL = numL1;
       numU = numU1;
+      N = numL + numU;
+
 
       P = P1;
       w = w1;
       q = q1;
-      d = new double[N*K];
+      d = new double[N];
+      avg = new double[N*K];
       D = new double[(numL + numU) * K];
 
       pair_to_l = pair_to_l1;

@@ -2,28 +2,41 @@
 
 #include <string>
 #include <unordered_map>
-#include "Label.hpp"
+#include <unordered_set>
+#include "PatTk/data/Label.hpp"
+#include "LLPack/utils/candy.hpp"
 #include "RanForest/RanForest.hpp"
 
 using namespace ran_forest;
+using namespace PatTk;
 
 namespace cat_tree
 {
-  template<typename dataType = float, template<typename> class splitter = BinaryOnAxis>
-  class GrayBox
+  template<typename featType, template<typename> class splitter = BinaryOnAxis>
+  class RedBox
   {
   public:
-    DataSet<dataType> dataset;
+
+    typedef typename ElementOf<featType>::type dataType;
+    
+    std::vector<featType> feat;
+
+    std::vector<int> label;
     
     Forest<dataType,splitter> forest;
 
     std::vector<double> q; // voters
 
-    GrayBox() : forest(), q(nullptr) {}
-
-    GrayBox( std::string dataInput, std::string forestDir ) : dataset(dataInput), forest(forestDir)
+    RedBox() : forest()
     {
-      // uniform initialization of voters
+      feat.clear();
+      label.clear();
+      q.clear();
+    }
+
+    void LoadForest( std::string forestDir ) 
+    {
+      forest.read(forestDir);
       q.resize( LabelSet::classes * forest.nodeNum() );
       for ( auto& ele : q ) ele = LabelSet::inv;
     }
@@ -45,7 +58,7 @@ namespace cat_tree
           int count = 0;
           for ( auto& ele : forest[i].store ) {
             if ( set.end() != set.find( ele ) ) {
-              vote[dataset.label[ele]] += 1.0;
+              vote[label[ele]] += 1.0;
               count++;
             }
           }
@@ -66,7 +79,7 @@ namespace cat_tree
           memset( vote, 0, sizeof(double) * LabelSet::classes );
           int count = 0;
           for ( auto& ele : forest[i].store ) {
-            vote[dataset.label[ele]] += 1.0;
+            vote[label[ele]] += 1.0;
             count++;
           }
           if ( 0 < count ) {
@@ -91,6 +104,11 @@ namespace cat_tree
       active.swap( tmp );
     }
 
+    int size() const
+    {
+      return static_cast<int>( feat.size() );
+    }
+
     int test( std::vector<int>& idx, int level = -1  )
     {
 
@@ -102,13 +120,13 @@ namespace cat_tree
       double vote[LabelSet::classes];
       int count = 0;
       for ( auto& ele : idx ) {
-        auto res = forest.query( dataset.feat[ele], level );
+        auto res = forest.query( feat[ele], level );
 
         // debugging:
         // if ( hash.end() == hash.find( res[0] ) ) {
         //   hash[res[0]] = std::vector<int>( LabelSet::classes, 0 );
         // }
-        // hash[res[0]][dataset.label[ele]]++;
+        // hash[res[0]][label[ele]]++;
 
         
         memset( vote, 0, sizeof(double) * LabelSet::classes );
@@ -123,7 +141,7 @@ namespace cat_tree
         for ( int i=1; i<LabelSet::classes; i++ ) {
           if ( vote[i] > vote[infer] ) infer = i;
         }
-        if ( infer == dataset.label[ele] ) {
+        if ( infer == label[ele] ) {
           count++;
         }
       }

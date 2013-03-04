@@ -170,14 +170,20 @@ MESSAGE(STATUS "NVCC VERISON: ${CUDA_NVCC_EXECUTABLE}" )
 # Note -Wno-non-virtual-dtor is for a defect in OpenCV
 set(CMAKE_CXX_FLAGS "${OPENCV_FLAGS} -Wall -Wextra -Wno-non-virtual-dtor -std=c++0x")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -DNDEBUG -O3 -fopenmp")
-set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -fopenmp")
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -fopenmp -D_GLIBCXX_DEBUG")
 set(CMAKE_CXX_FLAGS_GPROF "-O1 -pg")
 
 
 
-ADD_EXECUTABLE(setup experiment/setup.cpp)
-ADD_EXECUTABLE(plant experiment/plant.cpp)
-ADD_EXECUTABLE(exp experiment/exp.cpp)
+# ADD_EXECUTABLE(setup experiment/setup.cpp)
+# ADD_EXECUTABLE(plant experiment/plant.cpp)
+# ADD_EXECUTABLE(exp experiment/exp.cpp)
+# ADD_EXECUTABLE(climbing experiment/climbing.cpp)
+
+ADD_EXECUTABLE(camvid experiment/camvid.cpp)
+TARGET_LINK_LIBRARIES(camvid ${OPENCV})
+
+
 # TARGET_LINK_LIBRARIES(exp "-static")
 # ADD_EXECUTABLE(spiral experiment/spiral.cpp)
 
