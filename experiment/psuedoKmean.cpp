@@ -50,8 +50,6 @@ void partition( DataSet<T> &data, std::vector<int> &fed,
       }
     }
   }
-
-
 }
 
 
@@ -142,55 +140,57 @@ int main( int argc, char **argv )
 
   int depth = box.forest.depth();
   Info( "Tree Depth: %d\n", depth );
-
+  
   
   
 
   int level = depth;
   
+  for ( int level=0; level<depth; level++ ) {
   
-  /* forest query */
-  Bipartite m_to_l( M, box.forest.nodeNum() );
-  {
-    int m = 0;
-    for ( auto& ele : labeled ) {
-      auto res = box.forest.query( box.dataset.feat[ele], level );
-      double alpha = 1.0 / res.size();
-      for ( auto& item : res ) {
-        m_to_l.add( m, item, alpha );
+    /* forest query */
+    Bipartite m_to_l( M, box.forest.nodeNum() );
+    {
+      int m = 0;
+      for ( auto& ele : labeled ) {
+        auto res = box.forest.query( box.dataset.feat[ele], level );
+        double alpha = 1.0 / res.size();
+        for ( auto& item : res ) {
+          m_to_l.add( m, item, alpha );
+        }
+        m++;
+        if ( 0 == m % 100 ) {
+          progress( m, labeled.size() + unlabeled.size(), "query" );
+        }
       }
-      m++;
-      if ( 0 == m % 100 ) {
-        progress( m, labeled.size() + unlabeled.size(), "query" );
+
+      for ( auto& ele : unlabeled ) {
+        auto res = box.forest.query( box.dataset.feat[ele], -1 );
+        double alpha = 1.0 / res.size();
+        for ( auto& item : res ) {
+          m_to_l.add( m, item, alpha );
+        }
+        m++;
+        if ( 0 == m % 100 ) {
+          progress( m, labeled.size() + unlabeled.size(), "query" );
+        }
       }
+      progress( 1, 1, "query" );
+      printf( "\n" );
     }
 
-    for ( auto& ele : unlabeled ) {
-      auto res = box.forest.query( box.dataset.feat[ele], -1 );
-      double alpha = 1.0 / res.size();
-      for ( auto& item : res ) {
-        m_to_l.add( m, item, alpha );
-      }
-      m++;
-      if ( 0 == m % 100 ) {
-        progress( m, labeled.size() + unlabeled.size(), "query" );
-      }
-    }
-    progress( 1, 1, "query" );
-    printf( "\n" );
+  
+    PowerSolver solve;
+    solve( numL, numU, &P[0], &m_to_l, &box.q[0] );
+
+    printf( "========== test level %d ==========\n", level );
+    int l_count = box.test( labeled, level );
+    Info( "labeled: %d/%ld (%.2lf)", l_count, labeled.size(), static_cast<double>( l_count * 100 ) / labeled.size() );
+    int u_count = box.test( unlabeled, level );    
+    Info( "unlabeled: %d/%ld (%.2lf)", u_count, unlabeled.size(), static_cast<double>( u_count * 100 ) / unlabeled.size() );
+
+    int t_count = box.test( testing, level );    
+    Info( "testing: %d/%ld (%.2lf)", t_count, testing.size(), static_cast<double>( t_count * 100 ) / testing.size() );
   }
-
-  
-  PowerSolver solve;
-  solve( numL, numU, &P[0], &m_to_l, &box.q[0] );
-
-  printf( "========== test ==========\n" );
-  int l_count = box.test( labeled, level );
-  Info( "labeled: %d/%ld (%.2lf)", l_count, labeled.size(), static_cast<double>( l_count * 100 ) / labeled.size() );
-  int u_count = box.test( unlabeled, level );    
-  Info( "unlabeled: %d/%ld (%.2lf)", u_count, unlabeled.size(), static_cast<double>( u_count * 100 ) / unlabeled.size() );
-
-  int t_count = box.test( testing, level );    
-  Info( "testing: %d/%ld (%.2lf)", t_count, testing.size(), static_cast<double>( t_count * 100 ) / testing.size() );
   return 0;
 }

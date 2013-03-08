@@ -21,9 +21,6 @@ namespace cat_tree {
     // internal
     int N;
     int K;
-    int B; // num of basis
-    std::vector<std::unique_ptr<double> > Y;
-    std::vector<std::unique_ptr<double> > E;
     std::mt19937 rng;
 
   public:
@@ -31,9 +28,9 @@ namespace cat_tree {
     struct Options
     {
       int powerMaxIter;
-      int powerConverge;
+      double powerConverge;
       int maxSubspaceDim;
-      int significant;
+      double significant;
       int maxFail;
       /* ---------- */
       int maxIter; // iteration number
@@ -42,7 +39,7 @@ namespace cat_tree {
       {
         powerMaxIter = 100;
         powerConverge = 0.01;
-        maxSubspaceDim = 1000;
+        maxSubspaceDim = 100;
         significant = 0.01;
         maxFail = 10;
         /* ---------- */
@@ -65,13 +62,16 @@ namespace cat_tree {
     {
       for ( int n=0; n<N; n++ ) {
         std::vector<double> tmp = rndgen::rnd_unit_vec<double>( K, rng );
-        memcpy( y + n * K, &tmp[0], K * sizeof(double) );
-        double s = algebra::sum_vec( y + n * K, K );
-        algebra::scale( y + n * K, K, 1.0 / s );
+        algebra::watershed( &tmp[0], y + n * K, K );
       }
     }
     
 
+
+    inline void enforce_y( double *y )
+    {
+      algebra::copy( y, P, numL * K );
+    }
 
     inline void q_from_y( double *q, double *y )
     {
@@ -79,10 +79,6 @@ namespace cat_tree {
       // beta(n,l) = alpha(n,l) / [ sum_n alpha(n,l) ]
       for ( int l=0; l<m_to_l->sizeB(); l++ ) {
         auto _to_n = m_to_l->getFromSet(l);
-        if ( 0 == _to_n.size() ) {
-          Error( "leaf not touched!" );
-          exit( -1 );
-        }
         algebra::zero( q + l * K, K );
         double s = 0.0;
         for ( auto& ele : _to_n ) {
@@ -113,7 +109,9 @@ namespace cat_tree {
           const double &alpha = ele.second;
           algebra::addScaledTo( y + n * K, q + l * K, K, alpha );
         }
-        energy += algebra::dist2( y + n * K, tmp, K );
+        if ( numL <= n ) {
+          energy += algebra::dist2( y + n * K, tmp, K );
+        }
       }
       
       return energy;
@@ -123,127 +121,27 @@ namespace cat_tree {
     {
       std::unique_ptr<double> owner_y( new double[K*N] );
       double *y = owner_y.get();
-      initY( y );
-      
-      Info( "========== PowerIter ==========" );
-      for ( int iter=0; iter<options.powerMaxIter; iter++ ) {
+      y_from_q( y, q );
+      enforce_y( y );
 
+      for ( int iter=0; iter<options.powerMaxIter; iter++ ) {
+        
         q_from_y( q, y );
         
         double energy = y_from_q( y, q );
-        Info( "energy: %.5lf\n", energy );
+        enforce_y( y );
+
+        Info( "Iter: %d, Energy: %.6lf\n", iter, energy );
+        
         if ( sqrt(energy) < options.powerConverge ) {
           break;
         }
       }
-
+      
       return owner_y;
     }
 
 
-    void InitBasis()
-    {
-      B = 0;
-      int failed = 0;
-      while ( B < options.maxSubspaceDim ) {
-        std::unique_ptr<double> y_new = PowerIter();
-        std::unique_ptr<double> tmp( new double( K * N ) );
-        algebra::copy( tmp.get(), y_new.get(), K * N );
-        for ( auto& e : E ) {
-          double coef = algebra::dotprod( e.get(), tmp.get(), K * N );
-          algebra::minusScaledFrom( tmp.get(), e.get(), K * N, coef );
-        }
-        if ( options.significant < algebra::norm_l1( tmp.get(), K * N ) ) {
-          algebra::normalize_vec( tmp.get(), tmp.get(), K * N );
-          E.push_back( std::move( tmp ) );
-          Y.push_back( std::move( y_new ) );
-          B++;
-          failed = 0;
-        } else {
-          failed++;
-          if ( failed > options.maxFail ) {
-            break;
-          }
-        }
-      }
-    }
-
-
-    double quadEnergy( const double *x )
-    {
-      double energy = 0.0;
-      for ( int d=0; d<K*numL; d++ ) {
-        double tmp = P[d];
-        for ( int b=0; b<B; b++ ) {
-          tmp -= x[b] * Y[b].get()[d];
-        }
-        energy += tmp * tmp;
-      }
-      energy *= 0.5;
-      return energy;
-    }
-
-
-    void quadOpt()
-    {
-      double *YTP = new double[B];
-      double *YTY = new double[B*B]; // YTY is row major!!!
-
-      for ( int b=0; b<B; b++ ) {
-        YTP[b] = algebra::dotprod( Y[b].get(), P, K * numL );
-        for ( int c=0; c<B; c++ ) {
-          YTY[ c * B + b ] = algebra::dotprod( Y[b].get(), Y[c].get(), K * numL );
-        }
-      }
-
-
-      double x[B];
-      for ( int b=0; b<B; b++ ) x[b] = 1.0 / B;
-      double energy = quadEnergy( x );
-      
-      double g[B];
-
-      for ( int iter=0; iter<options.maxIter; iter++ ) {
-        // negative gradient
-        // YTP - YTY * x
-        for ( int b=0; b<B; b++ ) {
-          g[b] = YTP[b] - algebra::dotprod( YTY + b * B, x, B );
-        }
-
-        // line search
-        double newEnergy = 0.0;
-        double stepSize = 1.0;
-        double newX[B];
-        double t[B];
-        do {
-          algebra::copy( t, x, B );
-          algebra::minusScaledFrom( t, g, B, stepSize );
-          algebra::watershed( t, newX, B );
-          newEnergy = quadEnergy( newX );
-          stepSize *= options.shrinkRatio;
-        } while ( newEnergy > energy );
-
-        energy = newEnergy;
-        copy( x, newX, B );
-        
-      }
-
-      
-      double *final_y = new double[K*N];
-      for ( int d=0; d<K*N; d++ ) {
-        final_y[d] = 0.0;
-        for ( int b=0; b<B; b++ ) {
-          final_y[d] += x[b] * Y[b].get()[d];
-        }
-      }
-      q_from_y( q, final_y );
-      
-      DeleteToNullWithTestArray( final_y );
-      DeleteToNullWithTestArray( YTP );
-      DeleteToNullWithTestArray( YTY );
-    }
-    
-    
   public:
     void operator()( int numL1, int numU1, const double* P1, 
                      const Bipartite *m_to_l1, double *q1 )
@@ -258,16 +156,12 @@ namespace cat_tree {
       K = LabelSet::classes;
       
 
-      E.clear();
-      Y.clear();
-      rng.seed( std::chrono::system_clock::now().time_since_epoch().count() );
-
+      rng.seed( time( NULL ) );
       
       
-      InitBasis();
-      // quadOpt();
-
-      Info( "%d Basis found.", B );
+      std::unique_ptr<double> y = PowerIter();
+      q_from_y( q, y.get() );
+      
       
     }
     

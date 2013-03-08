@@ -264,9 +264,10 @@ int main( int argc, char **argv )
     }
 
     Info( "Beta = %.3lf\n", solve.options.beta );
-    solve( numL, numU, box.forest.nodeNum(),
-           &m_to_l, &pair_to_l, &patchPairs,
-           &w[0], &P[0], &box.q[0] );
+    box.initVoters( labeled, 100 );
+    // solve( numL, numU, box.forest.nodeNum(),
+    //        &m_to_l, &pair_to_l, &patchPairs,
+    //        &w[0], &P[0], &box.q[0] );
     Done( "Solved." );
     solve.options.beta += beta_step;
 

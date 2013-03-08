@@ -77,12 +77,14 @@ int main( int argc, char **argv )
   LabelSet::Summary();
 
   /* loading dataset and forest */
-  GrayBox<float,BinaryOnSubspace> box( env["feature-data-input"], env["forest-dir"] );
+  GrayBox<float,BinaryOnAxis> box( env["feature-data-input"], env["forest-dir"] );
   printf( "nodeNum: %d\n", box.forest.nodeNum() );
   
   box.zero();
 
   auto whole = rndgen::seq( box.dataset.size() );
+
+  std::vector<std::vector<int> > res(box.dataset.size());
 
   WITH_OPEN( out, "output.txt", "w" );
   for ( int level=0; level<box.forest.depth(); level++ ) {
@@ -90,8 +92,12 @@ int main( int argc, char **argv )
     std::vector<int> count( box.forest.nodeNum(), 0 );
     
     for ( int i=0; i<box.dataset.size(); i++ ) {
-      auto res = box.forest.query( box.dataset.feat[i], level );
-      for ( auto& item : res ) {
+      if ( res[i].empty() ) {
+        res[i] = std::move( box.forest.query( box.dataset.feat[i], level ) );
+      } else {
+        box.forest.levelDown( box.dataset.feat[i], res[i] );
+      }
+      for ( auto& item : res[i] ) {
         box.q[LabelSet::classes*item+box.dataset.label[i]] += 1.0;
         count[item]++;
       }
