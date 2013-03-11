@@ -118,7 +118,6 @@ namespace cat_tree
   }
 
   
-
   /* scale a vector */
   template <typename dataType>
   inline void scale( dataType* vec, int dim, dataType wt )

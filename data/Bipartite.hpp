@@ -35,6 +35,25 @@ namespace cat_tree
       }
     }
 
+    Bipartite( Bipartite &&other )
+    {
+      a_to_b.swap( other.a_to_b );
+      b_to_a.swap( other.b_to_a );
+    }
+
+    const Bipartite& operator=( Bipartite &&other )
+    {
+      a_to_b.swap( other.a_to_b );
+      b_to_a.swap( other.b_to_a );
+      return *(this);
+    }
+
+    inline void clear()
+    {
+      a_to_b.clear();
+      b_to_a.clear();
+    }
+
     inline void grow_a( int target ) {
       int old = static_cast<int>( a_to_b.size() );
       a_to_b.reserve( target );

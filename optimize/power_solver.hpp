@@ -78,7 +78,12 @@ namespace cat_tree {
       // q(l) = sum_n beta_(n,l) * y(n)
       // beta(n,l) = alpha(n,l) / [ sum_n alpha(n,l) ]
       for ( int l=0; l<m_to_l->sizeB(); l++ ) {
+
+
+
         auto _to_n = m_to_l->getFromSet(l);
+        if ( 0 == _to_n.size() ) continue;
+        
         algebra::zero( q + l * K, K );
         double s = 0.0;
         for ( auto& ele : _to_n ) {
@@ -91,10 +96,11 @@ namespace cat_tree {
         for ( int k=0; k<K; k++ ) {
           q[l*K+k] *= s;
         }
+
       }
     }
 
-    inline double y_from_q( double *y, double *q )
+    inline double y_from_q( double *y, double *q, bool debug=false )
     {
       double tmp[K];
       double energy = 0.0;
@@ -110,6 +116,15 @@ namespace cat_tree {
           algebra::addScaledTo( y + n * K, q + l * K, K, alpha );
         }
         if ( numL <= n ) {
+          
+          if ( debug ) {
+            DebugInfo( "before:" );
+            printVec( tmp, K );
+            DebugInfo( "after:" );
+            printVec( y + n * K, K );
+            ResumeOnRet();
+          }
+
           energy += algebra::dist2( y + n * K, tmp, K );
         }
       }
@@ -128,7 +143,7 @@ namespace cat_tree {
         
         q_from_y( q, y );
         
-        double energy = y_from_q( y, q );
+        double energy = y_from_q( y, q, false );
         enforce_y( y );
 
         Info( "Iter: %d, Energy: %.6lf\n", iter, energy );

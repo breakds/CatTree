@@ -19,7 +19,7 @@ int main( int argc, char **argv )
   
   env.parse( argv[1] );
   env.Summary();
-
+  
   LabelSet::initialize( env["class-map"] );
   LabelSet::Summary();
 

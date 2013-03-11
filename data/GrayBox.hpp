@@ -58,6 +58,33 @@ namespace cat_tree
       }
     }
 
+    void initVoters( const std::vector<int> &inverseMap,
+                     const Bipartite &n_to_l, 
+                     const int size )
+    {
+      int L = n_to_l.sizeB();
+      for ( auto& ele : q ) ele = LabelSet::inv;
+      for ( int l=0; l<L; l++ ) {
+        int count = 0;
+        auto _to_n = n_to_l.getFromSet( l );
+        for ( auto& ele : _to_n ) {
+          if ( ele.first < size ) {
+            int n = inverseMap[ele.first];
+            count++;
+            if ( 1 == count ) {
+              for ( int j=0; j<LabelSet::classes; j++ ) {
+                q[l*LabelSet::classes+j] = 0.0;
+              }
+            }
+            q[l*LabelSet::classes+dataset.label[n]] += 1.0;
+          }
+        }
+        if ( 0 < count ) {
+          scale( &q[l*LabelSet::classes], LabelSet::classes, 1.0/count);
+        }
+      }
+    }
+
     void initVoters()
     {
       for ( int i=0; i<forest.nodeNum(); i++ ) {
@@ -91,13 +118,42 @@ namespace cat_tree
       active.swap( tmp );
     }
 
+    int test( const std::vector<int>& inverseMap, 
+              const Bipartite &n_to_l, 
+              const int begin, 
+              const int end ) const
+    {
+      int count = 0;
+      double vote[LabelSet::classes];
+      for ( int i=begin; i<end; i++ ) {
+        int n = inverseMap[i];
+        auto _to_l = n_to_l.getToSet( i );
+        memset( vote, 0, sizeof(double) * LabelSet::classes );
+        for ( auto& ele : _to_l ) {
+          int l = ele.first;
+          addto( vote, &q[l * LabelSet::classes], LabelSet::classes );
+        }
+        int infer = 0;
+        for ( int k=1; k<LabelSet::classes; k++ ) {
+          if ( vote[k] > vote[infer] ) infer = k;
+        }
+
+        DebugInfo( "ground truth: %d", dataset.label[n] );
+        printVec( vote, LabelSet::classes );
+        ResumeOnRet();
+        
+        if ( infer == dataset.label[n] ) {
+          count++;
+        }
+      }
+      return count;
+    }
+
+
     int test( std::vector<int>& idx, int level = -1  )
     {
 
-      // debugging:
-      // std::unordered_map<int,std::vector<int> > hash;
-
-
+      
       
       double vote[LabelSet::classes];
       int count = 0;
