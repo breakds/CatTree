@@ -94,6 +94,17 @@ namespace cat_tree
     {
       return b_to_a[b];
     }
+
+    inline vector<pair<int,double> >& updateToSet( int a )
+    {
+      return a_to_b[a];
+    }
+
+    inline vector<pair<int,double> >& updateFromSet( int b )
+    {
+      return b_to_a[b];
+    }
+
     
     inline int sizeA() const 
     {

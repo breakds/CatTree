@@ -182,8 +182,8 @@ ADD_EXECUTABLE(poweriter experiment/poweriter_v2.cpp)
 # ADD_EXECUTABLE(exp experiment/exp.cpp)
 # ADD_EXECUTABLE(climbing experiment/climbing.cpp)
 
-# ADD_EXECUTABLE(camvid experiment/camvid.cpp)
-# TARGET_LINK_LIBRARIES(camvid ${OPENCV})
+ADD_EXECUTABLE(camvid experiment/camvid.cpp)
+TARGET_LINK_LIBRARIES(camvid ${OPENCV})
 
 
 # TARGET_LINK_LIBRARIES(exp "-static")

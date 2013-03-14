@@ -144,8 +144,6 @@ int main( int argc, char **argv )
   
   
 
-  int level = depth;
-
   for ( int level=0; level<depth; level++ ) {
   
     /* forest query */

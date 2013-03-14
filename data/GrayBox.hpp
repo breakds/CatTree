@@ -118,7 +118,7 @@ namespace cat_tree
       active.swap( tmp );
     }
 
-    int test( const std::vector<int>& inverseMap, 
+    int test( const std::vector<int>& idx, 
               const Bipartite &n_to_l, 
               const int begin, 
               const int end ) const
@@ -126,9 +126,10 @@ namespace cat_tree
       int count = 0;
       double vote[LabelSet::classes];
       for ( int i=begin; i<end; i++ ) {
-        int n = inverseMap[i];
+        int n = idx[i-begin];
         auto _to_l = n_to_l.getToSet( i );
         memset( vote, 0, sizeof(double) * LabelSet::classes );
+
         for ( auto& ele : _to_l ) {
           int l = ele.first;
           addto( vote, &q[l * LabelSet::classes], LabelSet::classes );
@@ -138,10 +139,6 @@ namespace cat_tree
           if ( vote[k] > vote[infer] ) infer = k;
         }
 
-        DebugInfo( "ground truth: %d", dataset.label[n] );
-        printVec( vote, LabelSet::classes );
-        ResumeOnRet();
-        
         if ( infer == dataset.label[n] ) {
           count++;
         }
@@ -166,7 +163,8 @@ namespace cat_tree
         // }
         // hash[res[0]][dataset.label[ele]]++;
 
-        
+        // debugging:
+
         memset( vote, 0, sizeof(double) * LabelSet::classes );
         for ( auto& item : res ) {
           addto( vote, &q[item * LabelSet::classes], LabelSet::classes );

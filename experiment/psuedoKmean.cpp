@@ -9,7 +9,7 @@
 #include "../data/Bipartite.hpp"
 #include "../data/GrayBox.hpp"
 #include "../optimize/power_solver.hpp"
-#include "../optimize/TMeans.hpp"
+#include "../optimize/TMeanShell.hpp"
 #include "RanForest/RanForest.hpp"
 
 using namespace EnvironmentVariable;
@@ -147,7 +147,7 @@ int main( int argc, char **argv )
   
   
   WITH_OPEN( out, "compare.txt", "w" );
-  for ( int level=4; level<14; level++ ) {
+  for ( int level=4; level<depth; level++ ) {
   
     /* forest query */
     Bipartite m_to_l( M, box.forest.nodeNum() );
@@ -180,6 +180,8 @@ int main( int argc, char **argv )
       printf( "\n" );
     }
 
+    fprintf( out, "level %d with %d leaves\n", level, box.forest.levelSize( level ) );
+
     PowerSolver solve;
     box.initVoters( inverseMap, m_to_l, numL );
     solve( numL, numU, &P[0], &m_to_l, &box.q[0] );
@@ -196,18 +198,18 @@ int main( int argc, char **argv )
     }
     
 
-    TMeans::Options clusteringOptions;
-    TMeans::Clustering( box.dataset.feat, training, box.dataset.dim,
-                        m_to_l, clusteringOptions );
-    
-    box.initVoters( inverseMap, m_to_l, numL );
-    solve( numL, numU, &P[0], &m_to_l, &box.q[0] );
-    
-    {
-      printf( "========== normal level %d ==========\n", level );
-      int l_count = box.test( labeled, level );
-      int u_count = box.test( unlabeled, level );
+    TMeanShell<float> shell;
+    shell.Clustering( box.dataset.feat, training, box.dataset.dim, m_to_l );
 
+    box.initVoters( inverseMap, m_to_l, M );
+    solve( numL, numU, &P[0], &m_to_l, &box.q[0] );
+
+    {
+      printf( "========== clustering level %d ==========\n", level );
+      // int l_count = box.test( labeled, level );
+      int l_count = box.test( labeled, m_to_l, 0, numL );
+      int u_count = box.test( unlabeled, m_to_l, numL, M );
+      
       Info( "all: %d/%ld (%.2lf)", l_count, labeled.size(), static_cast<double>( l_count * 100 ) / labeled.size() );
       Info( "all: %d/%ld (%.2lf)", u_count, unlabeled.size(), static_cast<double>( u_count * 100 ) / unlabeled.size() );
       fprintf( out, "clustering on:   %.2lf\t%.2lf\n", 
