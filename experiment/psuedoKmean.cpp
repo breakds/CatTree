@@ -4,6 +4,7 @@
 #include "LLPack/utils/extio.hpp"
 #include "LLPack/utils/Environment.hpp"
 #include "LLPack/algorithms/random.hpp"
+#include "LLPack/algorithms/algebra.hpp"
 #include "../data/Label.hpp"
 #include "../data/DataSet.hpp"
 #include "../data/Bipartite.hpp"
@@ -59,6 +60,52 @@ inline double ExpConv( double dist, double delta )
   return exp( - dist / delta );
 }
 
+
+template <typename boxType>
+void debug0( const int classID,
+             const Bipartite &m_to_l,
+             const int numL,
+             const std::vector<int> &labeled,
+             const boxType &box )
+{
+
+  std::unordered_set<int> hash;
+  for ( int n = 0; n < numL; n++ ) {
+    if ( classID == box.dataset.label[labeled[n]] ) {
+      auto _to_l = m_to_l.getToSet( n );
+      for ( auto& ele : _to_l ) {
+        int l = ele.first;
+        if ( hash.end() == hash.find( l ) ) {
+          hash.insert( l );
+        }
+      }
+    }
+  }
+  for ( auto& l : hash ) {
+    DebugInfo( "Leaf ID: %d\n", l );
+    DebugInfo( "estimated center" );
+    algebra::emphasizeDim( &box.q[l*LabelSet::classes], LabelSet::classes, classID );
+
+    auto _to_n = m_to_l.getFromSet( l );
+    double vote[LabelSet::classes];
+    algebra::zero( vote, LabelSet::classes );
+    for ( auto& ele : _to_n ) {
+      int n = ele.first;
+      if ( n < numL ) {
+        vote[box.dataset.label[labeled[n]]] += LabelSet::GetWeight( box.dataset.label[labeled[n]] );
+      }
+    }
+    DebugInfo( "average labeled" );
+    double s = algebra::sum_vec( vote, LabelSet::classes );
+    scale( vote, LabelSet::classes, 1.0 / s );
+    algebra::emphasizeDim( vote, LabelSet::classes, classID );
+
+    char ch;
+    scanf( "%c", &ch );
+    if ( 'e' == ch ) break;
+  }
+  
+}
 
 
 int main( int argc, char **argv )
@@ -147,7 +194,8 @@ int main( int argc, char **argv )
   
   
   WITH_OPEN( out, "compare.txt", "w" );
-  for ( int level=4; level<depth; level++ ) {
+  END_WITH( out );
+  for ( int level=6; level<depth; level++ ) {
   
     /* forest query */
     Bipartite m_to_l( M, box.forest.nodeNum() );
@@ -180,6 +228,8 @@ int main( int argc, char **argv )
       printf( "\n" );
     }
 
+
+    WITH_OPEN( out, "compare.txt", "a" );
     fprintf( out, "level %d with %d leaves\n", level, box.forest.levelSize( level ) );
 
     PowerSolver solve;
@@ -192,17 +242,26 @@ int main( int argc, char **argv )
       int u_count = box.test( unlabeled, level );
       Info( "all: %d/%ld (%.2lf)", l_count, labeled.size(), static_cast<double>( l_count * 100 ) / labeled.size() );
       Info( "all: %d/%ld (%.2lf)", u_count, unlabeled.size(), static_cast<double>( u_count * 100 ) / unlabeled.size() );
-      fprintf( out, "clustring off:  %.2lf\t%.2lf\n", 
-               static_cast<double>( l_count * 100 ) / labeled.size(), 
-               static_cast<double>( u_count * 100 ) / unlabeled.size() );
+      // fprintf( out, "clustring off:  %.2lf\t%.2lf\n", 
+      //          static_cast<double>( l_count * 100 ) / labeled.size(), 
+      //          static_cast<double>( u_count * 100 ) / unlabeled.size() );
     }
-    
+
 
     TMeanShell<float> shell;
     shell.Clustering( box.dataset.feat, training, box.dataset.dim, m_to_l );
 
-    box.initVoters( inverseMap, m_to_l, M );
-    solve( numL, numU, &P[0], &m_to_l, &box.q[0] );
+    box.initVoters( inverseMap, m_to_l, numL );
+    double e = solve( numL, numU, &P[0], &m_to_l, &box.q[0] );
+    // debugging:
+    fprintf( out, "(%.6lf\n", e );
+
+    // debugging:
+    // debug0( 9, m_to_l, numL, labeled, box );
+    // debug0( 4, m_to_l, numL, labeled, box );
+    // debug0( 6, m_to_l, numL, labeled, box );
+    
+
 
     {
       printf( "========== clustering level %d ==========\n", level );
@@ -212,12 +271,14 @@ int main( int argc, char **argv )
       
       Info( "all: %d/%ld (%.2lf)", l_count, labeled.size(), static_cast<double>( l_count * 100 ) / labeled.size() );
       Info( "all: %d/%ld (%.2lf)", u_count, unlabeled.size(), static_cast<double>( u_count * 100 ) / unlabeled.size() );
-      fprintf( out, "clustering on:   %.2lf\t%.2lf\n", 
-               static_cast<double>( l_count * 100 ) / labeled.size(),
+      // fprintf( out, "clustering on:   %.2lf\t%.2lf\n", 
+      //          static_cast<double>( l_count * 100 ) / labeled.size(),
+      //          static_cast<double>( u_count * 100 ) / unlabeled.size() );
+      fprintf( out, "%.2lf\n%.2lf\n", static_cast<double>( l_count * 100 ) / labeled.size(),
                static_cast<double>( u_count * 100 ) / unlabeled.size() );
     }
-    
+    END_WITH( out );
   }
-  END_WITH( out );
+
   return 0;
 }

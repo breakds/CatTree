@@ -37,8 +37,8 @@ namespace cat_tree {
       double shrinkRatio; // Shrinking Ratio for line search
       Options()
       {
-        powerMaxIter = 100;
-        powerConverge = 0.01;
+        powerMaxIter = 200;
+        powerConverge = 1e-5;
         maxSubspaceDim = 100;
         significant = 0.01;
         maxFail = 10;
@@ -100,11 +100,10 @@ namespace cat_tree {
       }
     }
 
-    inline double y_from_q( double *y, double *q, bool debug=false )
+    inline void y_from_q( double *y, double *q, bool debug=false )
     {
       double tmp[K];
-      double energy = 0.0;
-      
+
       // y(n) = sum_l alpha(n,l) q(l)
       for ( int n=0; n<N; n++ ) {
         auto _to_l = m_to_l->getToSet(n);
@@ -116,7 +115,7 @@ namespace cat_tree {
           algebra::addScaledTo( y + n * K, q + l * K, K, alpha );
         }
         if ( numL <= n ) {
-          
+
           if ( debug ) {
             DebugInfo( "before:" );
             printVec( tmp, K );
@@ -125,32 +124,55 @@ namespace cat_tree {
             ResumeOnRet();
           }
 
-          energy += algebra::dist2( y + n * K, tmp, K );
         }
       }
-      
-      return energy;
+
     }
     
-    inline std::unique_ptr<double> PowerIter()
+    inline std::unique_ptr<double> PowerIter( double &energy )
     {
       std::unique_ptr<double> owner_y( new double[K*N] );
       double *y = owner_y.get();
       y_from_q( y, q );
       enforce_y( y );
 
+      double lastEnergy = - 1.0;
+
       for ( int iter=0; iter<options.powerMaxIter; iter++ ) {
         
         q_from_y( q, y );
-        
-        double energy = y_from_q( y, q, false );
-        enforce_y( y );
 
-        Info( "Iter: %d, Energy: %.6lf\n", iter, energy );
         
-        if ( sqrt(energy) < options.powerConverge ) {
+
+        y_from_q( y, q, false );
+
+        // debugging:
+        // DebugInfo( "estimation of y: " );  
+        // for ( int n=0; n<numL; n++ ) {
+        //   if ( 0.5 < P[n*K+9] ) {
+        //     algebra::emphasizeDim( y + n * K, K, 9 );
+        //   }
+        // }
+        // ResumeOnRet();
+
+        enforce_y( y );
+        
+        energy = 0.0;
+        for ( int n=0; n<N; n++ ) {
+          auto& _to_l = m_to_l->getToSet( n );
+          for ( auto& ele : _to_l ) {
+            int l = ele.first;
+            double alpha = ele.second;
+            energy += alpha * algebra::dist2( y + n * K, q + l * K, K );
+          }
+        }
+
+        Info( "Iter: %d, Energy: %.6lf", iter, energy );
+
+        if ( lastEnergy > 0.0 && fabs( lastEnergy - energy ) < options.powerConverge ) {
           break;
         }
+        lastEnergy = energy;
       }
       
       return owner_y;
@@ -158,8 +180,8 @@ namespace cat_tree {
 
 
   public:
-    void operator()( int numL1, int numU1, const double* P1, 
-                     const Bipartite *m_to_l1, double *q1 )
+    double operator()( int numL1, int numU1, const double* P1, 
+                       const Bipartite *m_to_l1, double *q1 )
     {
       // initialize
       numL = numL1;
@@ -173,10 +195,10 @@ namespace cat_tree {
 
       rng.seed( time( NULL ) );
       
-      
-      std::unique_ptr<double> y = PowerIter();
+      double energy;
+      std::unique_ptr<double> y = PowerIter( energy );
       q_from_y( q, y.get() );
-      
+      return energy;
       
     }
     

@@ -121,7 +121,8 @@ namespace cat_tree
     int test( const std::vector<int>& idx, 
               const Bipartite &n_to_l, 
               const int begin, 
-              const int end ) const
+              const int end,
+              bool debug = false ) const
     {
       int count = 0;
       double vote[LabelSet::classes];
@@ -134,11 +135,21 @@ namespace cat_tree
           int l = ele.first;
           addto( vote, &q[l * LabelSet::classes], LabelSet::classes );
         }
+
+
         int infer = 0;
-        for ( int k=1; k<LabelSet::classes; k++ ) {
+        for ( int k = 1; k < LabelSet::classes; k++ ) {
           if ( vote[k] > vote[infer] ) infer = k;
         }
 
+        
+
+        if ( debug ) {
+          DebugInfo( "True: %d, Infer: %d\n", dataset.label[n], infer );
+          printVec( vote, LabelSet::classes );
+          ResumeOnRet();
+        }
+        
         if ( infer == dataset.label[n] ) {
           count++;
         }
@@ -149,7 +160,7 @@ namespace cat_tree
 
     int test( std::vector<int>& idx, int level = -1  )
     {
-
+      
       
       
       double vote[LabelSet::classes];
@@ -169,6 +180,7 @@ namespace cat_tree
         for ( auto& item : res ) {
           addto( vote, &q[item * LabelSet::classes], LabelSet::classes );
         }
+
         // for ( int i=0; i<LabelSet::classes; i++ ) {
         //   vote[i] *= LabelSet::GetWeight(i);
         // }
