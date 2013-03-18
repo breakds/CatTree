@@ -38,7 +38,7 @@ namespace cat_tree {
       double shrinkRatio; // Shrinking Ratio for line search
       Options()
       {
-        powerMaxIter = 200;
+        powerMaxIter = 5;
         powerConverge = 1e-5;
         maxSubspaceDim = 100;
         significant = 0.01;
@@ -90,7 +90,7 @@ namespace cat_tree {
         for ( auto& ele : _to_n ) {
           const int &n = ele.first;
           const double &alpha = ele.second;
-          if ( n > numL ) {
+          if ( n >= numL ) {
             s += alpha;
             algebra::addScaledTo( q + l * K, y + n * K, K, alpha );
           } else {
@@ -173,7 +173,12 @@ namespace cat_tree {
           for ( auto& ele : _to_l ) {
             int l = ele.first;
             double alpha = ele.second;
-            energy += alpha * algebra::dist2( y + n * K, q + l * K, K );
+            if ( n >= numL ) {
+              energy += alpha * algebra::dist2( y + n * K, q + l * K, K );
+            } else {
+              energy += alpha * LabelSet::GetWeight( label[n] ) * 1450.0 *
+                algebra::dist2( y + n * K, q + l * K, K );
+            }
           }
         }
 
