@@ -191,7 +191,10 @@ int main( int argc, char **argv )
 
   int depth = box.forest.depth();
   Info( "Tree Depth: %d\n", depth );
-  
+
+  std::unique_ptr<double> y_normal(nullptr);  
+  std::unique_ptr<double> y(nullptr);
+
   
   WITH_OPEN( out, "compare.txt", "w" );
   END_WITH( out );
@@ -234,7 +237,7 @@ int main( int argc, char **argv )
 
     PowerSolver solve;
     box.initVoters( inverseMap, m_to_l, numL );
-    solve( numL, numU, &P[0], &m_to_l, &box.q[0] );
+    solve( numL, numU, &P[0], &m_to_l, &box.q[0], y_normal );
 
     {
       printf( "========== normal level %d ==========\n", level );
@@ -250,11 +253,13 @@ int main( int argc, char **argv )
 
     TMeanShell<float> shell;
     shell.Clustering( box.dataset.feat, training, box.dataset.dim, m_to_l );
+    
 
     box.initVoters( inverseMap, m_to_l, numL );
-    double e = solve( numL, numU, &P[0], &m_to_l, &box.q[0] );
+    double e = solve( numL, numU, &P[0], &m_to_l, &box.q[0], y );
+    
     // debugging:
-    fprintf( out, "(%.6lf\n", e );
+    fprintf( out, "(%.6lf)\n", e );
 
     // debugging:
     // debug0( 9, m_to_l, numL, labeled, box );

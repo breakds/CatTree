@@ -17,6 +17,7 @@ namespace cat_tree {
     const double *P;
     const Bipartite *m_to_l;
     double *q;
+    std::vector<int> label;
     
     // internal
     int N;
@@ -72,7 +73,7 @@ namespace cat_tree {
     {
       algebra::copy( y, P, numL * K );
     }
-
+    
     inline void q_from_y( double *q, double *y )
     {
       // q(l) = sum_n beta_(n,l) * y(n)
@@ -89,14 +90,20 @@ namespace cat_tree {
         for ( auto& ele : _to_n ) {
           const int &n = ele.first;
           const double &alpha = ele.second;
-          s += alpha;
-          algebra::addScaledTo( q + l * K, y + n * K, K, alpha );
+          if ( n > numL ) {
+            s += alpha;
+            algebra::addScaledTo( q + l * K, y + n * K, K, alpha );
+          } else {
+            double w = alpha * 1450.0 * LabelSet::GetWeight( label[n] );
+            s += w;
+            algebra::addScaledTo( q + l * K, y + n * K, K, w );
+          }
         }
         s = 1.0 / s;
         for ( int k=0; k<K; k++ ) {
           q[l*K+k] *= s;
         }
-
+        
       }
     }
 
@@ -129,11 +136,14 @@ namespace cat_tree {
 
     }
     
-    inline std::unique_ptr<double> PowerIter( double &energy )
+    inline double PowerIter( std::unique_ptr<double> &yptr )
     {
-      std::unique_ptr<double> owner_y( new double[K*N] );
-      double *y = owner_y.get();
-      y_from_q( y, q );
+
+      if ( !yptr ) {
+        yptr.reset( new double[K*N] );
+        y_from_q( yptr.get(), q );
+      }
+      double *y = yptr.get();
       enforce_y( y );
 
       double lastEnergy = - 1.0;
@@ -157,7 +167,7 @@ namespace cat_tree {
 
         enforce_y( y );
         
-        energy = 0.0;
+        double energy = 0.0;
         for ( int n=0; n<N; n++ ) {
           auto& _to_l = m_to_l->getToSet( n );
           for ( auto& ele : _to_l ) {
@@ -170,18 +180,19 @@ namespace cat_tree {
         Info( "Iter: %d, Energy: %.6lf", iter, energy );
 
         if ( lastEnergy > 0.0 && fabs( lastEnergy - energy ) < options.powerConverge ) {
-          break;
+          return energy;
         }
         lastEnergy = energy;
       }
-      
-      return owner_y;
+      return lastEnergy;
+
     }
 
 
   public:
     double operator()( int numL1, int numU1, const double* P1, 
-                       const Bipartite *m_to_l1, double *q1 )
+                       const Bipartite *m_to_l1, double *q1, 
+                       std::unique_ptr<double> &y )
     {
       // initialize
       numL = numL1;
@@ -191,17 +202,22 @@ namespace cat_tree {
       m_to_l = m_to_l1;
       q = q1;
       K = LabelSet::classes;
+      label.resize( numL );
+      for ( int i=0; i<numL; i++ ) {
+        for ( int k=0; k<K; k++ ) {
+          if ( P[i*K+k] > 0.9 ) {
+            label[i] = k;
+            break;
+          }
+        }
+      }
       
-
+      
       rng.seed( time( NULL ) );
       
-      double energy;
-      std::unique_ptr<double> y = PowerIter( energy );
+      double energy = PowerIter( y );
       q_from_y( q, y.get() );
       return energy;
-      
     }
-    
-    
   };
 }
