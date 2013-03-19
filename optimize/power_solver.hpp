@@ -5,8 +5,6 @@
 #include "LLPack/utils/candy.hpp"
 #include "LLPack/algorithms/random.hpp"
 #include "LLPack/algorithms/algebra.hpp"
-#include "../data/Bipartite.hpp"
-
 
 
 namespace cat_tree {
@@ -82,7 +80,7 @@ namespace cat_tree {
 
 
 
-        auto _to_n = m_to_l->getFromSet(l);
+        auto _to_n = m_to_l->to(l);
         if ( 0 == _to_n.size() ) continue;
         
         algebra::zero( q + l * K, K );
@@ -90,14 +88,8 @@ namespace cat_tree {
         for ( auto& ele : _to_n ) {
           const int &n = ele.first;
           const double &alpha = ele.second;
-          if ( true ) {
-            s += alpha;
-            algebra::addScaledTo( q + l * K, y + n * K, K, alpha );
-          } else {
-            double w = alpha * 1450.0 * LabelSet::GetWeight( label[n] );
-            s += w;
-            algebra::addScaledTo( q + l * K, y + n * K, K, w );
-          }
+          s += alpha;
+          algebra::addScaledTo( q + l * K, y + n * K, K, alpha );
         }
         s = 1.0 / s;
         for ( int k=0; k<K; k++ ) {
@@ -113,7 +105,7 @@ namespace cat_tree {
 
       // y(n) = sum_l alpha(n,l) q(l)
       for ( int n=0; n<N; n++ ) {
-        auto _to_l = m_to_l->getToSet(n);
+        auto _to_l = m_to_l->from(n);
         algebra::copy( tmp, y + n * K, K );
         algebra::zero( y + n * K, K );
         for ( auto& ele : _to_l ) {
@@ -169,16 +161,11 @@ namespace cat_tree {
         
         double energy = 0.0;
         for ( int n=0; n<N; n++ ) {
-          auto& _to_l = m_to_l->getToSet( n );
+          auto& _to_l = m_to_l->from( n );
           for ( auto& ele : _to_l ) {
             int l = ele.first;
             double alpha = ele.second;
-            if ( true ) {
-              energy += alpha * algebra::dist2( y + n * K, q + l * K, K );
-            } else {
-              energy += alpha * LabelSet::GetWeight( label[n] ) * 1450.0 *
-                algebra::dist2( y + n * K, q + l * K, K );
-            }
+            energy += alpha * algebra::dist2( y + n * K, q + l * K, K );
           }
         }
 

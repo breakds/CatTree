@@ -8,7 +8,6 @@
 #include "PatTk/data/FeatImage.hpp"
 #include "PatTk/interfaces/opencv_aux.hpp"
 #include "RanForest/RanForest.hpp"
-#include "../data/Bipartite.hpp"
 #include "../data/RedBox.hpp"
 #include "../optimize/power_solver.hpp"
 #include "../optimize/TMeanShell.hpp"
@@ -126,35 +125,30 @@ int main( int argc, char **argv )
   init( imgList, lblList, album );
   
 
-  RedBox<FeatImage<float>::PatchProxy,BinaryOnSubspace> box;
+  RedBox<FeatImage<float>::PatchProxy,BinaryOnAxis> box;
   BuildDataset( album, lblList, box.feat, box.label, env["sampling-margin"], env["sampling-stride"] );
 
 
 
   /* ---------- Load/Construct Forest ---------- */
-  if ( 0 == strcmp( env["forest-source"].c_str(), "build" ) ||
-       0 == strcmp( env["forest-source"].c_str(), "construct" ) ) {
-    typename ran_forest::MaxGapSubspaceKernel<typename FeatImage<float>::PatchProxy, BinaryOnSubspace>::Options options;
+  typename ran_forest::SimpleKernel<typename FeatImage<float>::PatchProxy, BinaryOnAxis>::Options options;
 
-    options.dim = box.feat[0].dim();
-    options.converge = 0.005;
-    options.stopNum = 3;
-    options.dimPrelim = 10;
-    options.dimPrelim = 10;
-    options.numHypo = 10;
+  options.dim = box.feat[0].dim();
+  options.converge = 0.005;
+  options.stopNum = 3;
+  options.numHypo = 10;
     
-    Forest<float,BinaryOnSubspace> forest;
-    forest.grow<ran_forest::MaxGapSubspaceKernel>( env["forest-size"],
-                                                   box.feat,
-                                                   options,
-                                                   env["propotion-per-tree"].toDouble() );
+  Forest<float,BinaryOnAxis> forest;
+  forest.grow<ran_forest::SimpleKernel>( env["forest-size"],
+                                         box.feat,
+                                         options,
+                                         env["propotion-per-tree"].toDouble() );
 
-    Info( "Total Nodes:  %d", forest.nodeNum() );
-    Info( "Total Leaves: %d", forest.levelSize( forest.depth() ) );
+  Info( "Total Nodes:  %d", forest.nodeNum() );
+  Info( "Total Leaves: %d", forest.levelSize( forest.depth() ) );
 
-    forest.write( env["forest-dir"] );
-    Done( "forest written to %s", env["forest-dir"].c_str() );
+  forest.write( env["forest-dir"] );
+  Done( "forest written to %s", env["forest-dir"].c_str() );
 
-  }
   return 0;
 }

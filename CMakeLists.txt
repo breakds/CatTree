@@ -174,16 +174,18 @@ set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -fopenmp -D_GLIBCXX_DEBUG")
 set(CMAKE_CXX_FLAGS_GPROF "-O1 -pg")
 
 
-
-ADD_EXECUTABLE(setup experiment/setup.cpp)
-ADD_EXECUTABLE(plant experiment/plant.cpp)
+# caltech101 experiment
+# ADD_EXECUTABLE(setup experiment/setup.cpp)
+# ADD_EXECUTABLE(plant experiment/plant.cpp)
 ADD_EXECUTABLE(clustring experiment/psuedoKmean.cpp)
-ADD_EXECUTABLE(prim experiment/prim.cpp)
+# ADD_EXECUTABLE(prim experiment/prim.cpp)
+
+
 # ADD_EXECUTABLE(poweriter experiment/poweriter_v2.cpp)
 # ADD_EXECUTABLE(exp experiment/exp.cpp)
 # ADD_EXECUTABLE(climbing experiment/climbing.cpp)
 
-# ADD_EXECUTABLE(camvid experiment/camvid.cpp)
+
 # TARGET_LINK_LIBRARIES(camvid ${OPENCV})
 
 
@@ -191,6 +193,11 @@ ADD_EXECUTABLE(prim experiment/prim.cpp)
 # ADD_EXECUTABLE(spiral experiment/spiral.cpp)
 
 # ADD_EXECUTABLE(vis experiment/visualize.cpp)
+
+# experiment on Camvid
+ADD_EXECUTABLE(plant experiment/CamvidPlant.cpp)
+TARGET_LINK_LIBRARIES(plant ${OPENCV})
+
 
 
 

@@ -3,7 +3,6 @@
 #include <vector>
 #include "LLPack/algorithms/heap.hpp"
 #include "../data/vector.hpp"
-#include "../data/Bipartite.hpp"
 
 namespace cat_tree {
 
@@ -42,7 +41,7 @@ namespace cat_tree {
       std::vector<int> count( L, 0 );
         
       for ( int n=0; n<N; n++ ) {
-        auto& _to_l = n_to_l.getToSet( n );
+        auto& _to_l = n_to_l.from( n );
         for ( auto& ele : _to_l ) {
           int l = ele.first;
           count[l]++;
@@ -89,7 +88,7 @@ namespace cat_tree {
         Info( "TMeans iter %d", iter );
         // pick centers
         for ( int n=0; n<N; n++ ) {
-          auto& _to_l = n_to_l.getToSet( n );
+          auto& _to_l = n_to_l.from( n );
           heap<double,int> ranker( options.replicate );
           for ( auto& ele : _to_l ) {
             int l = ele.first;
@@ -112,7 +111,7 @@ namespace cat_tree {
         // Calculate Energy
         double energy = 0.0;
         for ( int n=0; n<N; n++ ) {
-          auto& _to_l = bimap.getToSet( n );
+          auto& _to_l = bimap.from( n );
           for ( auto& ele : _to_l ) {
             int l = ele.first;
             for ( int j=0; j<dim; j++ ) {
@@ -134,7 +133,7 @@ namespace cat_tree {
 
       // update alphas
       for ( int n=0; n<N; n++ ) {
-        auto& _to_l = bimap.updateToSet( n );
+        auto& _to_l = bimap.getSetFrom( n );
         if ( 0 < _to_l.size() ) {
 
           double s = 0.0;

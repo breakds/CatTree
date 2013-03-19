@@ -7,15 +7,17 @@
 #include "LLPack/algorithms/algebra.hpp"
 #include "../data/Label.hpp"
 #include "../data/DataSet.hpp"
-#include "../data/Bipartite.hpp"
 #include "../data/GrayBox.hpp"
 #include "../optimize/power_solver.hpp"
 #include "../optimize/TMeanShell.hpp"
 #include "RanForest/RanForest.hpp"
 
+
 using namespace EnvironmentVariable;
 using namespace ran_forest;
-using namespace cat_tree; 
+using namespace cat_tree;
+
+using ran_forest::Bipartite;
 
 template <typename T>
 void partition( DataSet<T> &data, std::vector<int> &fed,
@@ -70,7 +72,7 @@ inline double entropy( Bipartite &m_to_l, const GrayBox<float,BinaryOnAxis> & bo
   double d[LabelSet::classes];
   double E = 0.0;
   for ( int l=0; l<L; l++ ) {
-    auto& _to_n = m_to_l.getFromSet( l );
+    auto& _to_n = m_to_l.to( l );
     if ( 0 < _to_n.size() ) {
       double unit = 1.0 / _to_n.size();
       count++;
@@ -105,7 +107,7 @@ void debug0( const int classID,
   std::unordered_set<int> hash;
   for ( int n = 0; n < numL; n++ ) {
     if ( classID == box.dataset.label[labeled[n]] ) {
-      auto _to_l = m_to_l.getToSet( n );
+      auto _to_l = m_to_l.from( n );
       for ( auto& ele : _to_l ) {
         int l = ele.first;
         if ( hash.end() == hash.find( l ) ) {
@@ -119,7 +121,7 @@ void debug0( const int classID,
     DebugInfo( "estimated center" );
     algebra::emphasizeDim( &box.q[l*LabelSet::classes], LabelSet::classes, classID );
 
-    auto _to_n = m_to_l.getFromSet( l );
+    auto _to_n = m_to_l.to( l );
     double vote[LabelSet::classes];
     algebra::zero( vote, LabelSet::classes );
     for ( auto& ele : _to_n ) {
@@ -233,36 +235,8 @@ int main( int argc, char **argv )
   END_WITH( out );
   for ( int level=6; level<depth; level++ ) {
   
-    /* forest query */
-    Bipartite m_to_l( M, box.forest.nodeNum() );
-    {
-      int m = 0;
-      for ( auto& ele : labeled ) {
-        auto res = box.forest.query( box.dataset.feat[ele], level );
-        double alpha = 1.0 / res.size();
-        for ( auto& item : res ) {
-          m_to_l.add( m, item, alpha );
-        }
-        m++;
-        if ( 0 == m % 100 ) {
-          progress( m, labeled.size() + unlabeled.size(), "query" );
-        }
-      }
-
-      for ( auto& ele : unlabeled ) {
-        auto res = box.forest.query( box.dataset.feat[ele], level );
-        double alpha = 1.0 / res.size();
-        for ( auto& item : res ) {
-          m_to_l.add( m, item, alpha );
-        }
-        m++;
-        if ( 0 == m % 100 ) {
-          progress( m, labeled.size() + unlabeled.size(), "query" );
-        }
-      }
-      progress( 1, 1, "query" );
-      printf( "\n" );
-    }
+    Bipartite m_to_l = std::move( box.forest.batch_query( SubList::create( box.dataset.feat, training ),
+                                                          level ) );
 
     DebugInfo( "entropy: %.5lf\n", entropy( m_to_l, box, labeled, unlabeled ) );
 

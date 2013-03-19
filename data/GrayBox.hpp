@@ -66,7 +66,7 @@ namespace cat_tree
       for ( auto& ele : q ) ele = LabelSet::inv;
       for ( int l=0; l<L; l++ ) {
         int count = 0;
-        auto _to_n = n_to_l.getFromSet( l );
+        auto _to_n = n_to_l.to( l );
         for ( auto& ele : _to_n ) {
           if ( ele.first < size ) {
             int n = inverseMap[ele.first];
@@ -132,7 +132,7 @@ namespace cat_tree
       double vote[LabelSet::classes];
       for ( int i=begin; i<end; i++ ) {
         int n = idx[i-begin];
-        auto _to_l = n_to_l.getToSet( i );
+        auto _to_l = n_to_l.from( i );
         memset( vote, 0, sizeof(double) * LabelSet::classes );
 
         for ( auto& ele : _to_l ) {
