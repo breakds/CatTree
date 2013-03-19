@@ -56,63 +56,24 @@ void partition( DataSet<T> &data, std::vector<int> &fed,
 }
 
 
-inline double ExpConv( double dist, double delta )
+void InitHeap( int i, const GrayBox<float,BinaryOnAxis>& box, 
+               const std::vector<int> &estimated,
+               std::vector<heap<double, int, false> > &heaps )
 {
-  return exp( - dist / delta );
-}
-
-
-template <typename boxType>
-void debug0( const int classID,
-             const Bipartite &m_to_l,
-             const int numL,
-             const std::vector<int> &labeled,
-             const boxType &box )
-{
-
-  std::unordered_set<int> hash;
-  for ( int n = 0; n < numL; n++ ) {
-    if ( classID == box.dataset.label[labeled[n]] ) {
-      auto _to_l = m_to_l.getToSet( n );
-      for ( auto& ele : _to_l ) {
-        int l = ele.first;
-        if ( hash.end() == hash.find( l ) ) {
-          hash.insert( l );
-        }
-      }
-    }
+  for ( int n=0; n<box.dataset.size(); n++ ) {
+    if ( n == i ) continue;
+    if ( -1 != estimated [n] ) continue;
+    heaps[i].add( -algebra::dist_l2( &box.dataset.feat[i][0],
+                                     &box.dataset.feat[n][0],
+                                     box.dataset.dim ), n);
   }
-  for ( auto& l : hash ) {
-    DebugInfo( "Leaf ID: %d\n", l );
-    DebugInfo( "estimated center" );
-    algebra::emphasizeDim( &box.q[l*LabelSet::classes], LabelSet::classes, classID );
-
-    auto _to_n = m_to_l.getFromSet( l );
-    double vote[LabelSet::classes];
-    algebra::zero( vote, LabelSet::classes );
-    for ( auto& ele : _to_n ) {
-      int n = ele.first;
-      if ( n < numL ) {
-        vote[box.dataset.label[labeled[n]]] += LabelSet::GetWeight( box.dataset.label[labeled[n]] );
-      }
-    }
-    DebugInfo( "average labeled" );
-    double s = algebra::sum_vec( vote, LabelSet::classes );
-    scale( vote, LabelSet::classes, 1.0 / s );
-    algebra::emphasizeDim( vote, LabelSet::classes, classID );
-
-    char ch;
-    scanf( "%c", &ch );
-    if ( 'e' == ch ) break;
-  }
-  
 }
 
 
 int main( int argc, char **argv )
 {
   if ( argc < 2 ) {
-    Error( "Missing configuration file in options. (maybe  exp.conf?)" );
+    Error( "Missing configuration file in options. (maybe  prim.conf?)" );
     exit( -1 );
   }
 
@@ -177,29 +138,66 @@ int main( int argc, char **argv )
   int M = numU + numL;
 
   /* ---------- Construct Heap ---------- */
+  // estimated labels
   std::vector<int> estimated( M, -1 );
-  for ( auto &ele : labeled ) {
-    estimated[labeled[ele]] = box.dataset.label[labeled[ele]];
-  }
+  // heap per datapoint
+  std::vector<heap<double, int, false> > heaps( M );
+  
+  // final (overall) heap
+  heap<double, int, false> finale;
 
-  heap <double, std::pair<int,int>, false> priority;
-  for ( int i=0; i<M-1; i++ ) {
-    for ( int j=i+1; j<M; j++ ) {
-      if ( -1 != estimated[i] && -1 != estimated[j] ) continue;
-      priority.add( -algebra::dist_l2( box.dataset.feat[i],
-                                       box.dataset.feat[j],
-                                       box.dataset.dim ),
-                    std::make_pair( i, j ) );
-    }
-    progress( i+1, M-1, "Constructing Heap" );
-  }
-  printf( "\n" );
-
-  /* ---------- labeling ---------- */
-  while ( ! priority.empty() ) {
-    int pair = 
+  // labeled init
+  {
+    int count = 0;
+      for ( auto &ele : labeled ) {
+        estimated[ele] = box.dataset.label[ele];
+        InitHeap( ele, box, estimated, heaps );
+        finale.add( heaps[ele](0), ele );
+        progress( ++count, numL, "init heaps" );
+      }
+      printf( "\n" );
   }
   
+  /* ---------- Eject ---------- */
+  {
+    int remain = numU;
+    while ( ! finale.empty() ) {
+      int i = finale[0];
+      finale.pop();
+      int j = heaps[i][0];
+      heaps[i].pop();
+    
+
+    
+    
+      if ( -1 == estimated[j] ) {
+        remain --;
+        progress( numU - remain, numU, "ejecting" );
+        estimated[j] = estimated[i];
+        if ( ! heaps[i].empty() ) {
+          finale.add( heaps[i](0), i );
+        }
+        InitHeap( j, box, estimated, heaps );
+        if ( ! heaps[j].empty() ) {
+          finale.add( heaps[j](0), j );
+        }
+        if ( 0 == remain ) break;
+      }
+    }
+    printf( "\n" );
+  }
+
+  /* ---------- Evaluation ---------- */
+  DebugInfo( "here" );
+  int count = 0;
+  for ( auto& ele : unlabeled ) {
+    if ( estimated[ele] == box.dataset.label[ele] ) {
+      count++;
+    }
+  }
+  
+  Info( "accuracy unlabeld: (%d/%d) = %.2lf%%", count, numU, 
+        static_cast<double>( count ) / numU * 100.0 );
   
   return 0;
 }
