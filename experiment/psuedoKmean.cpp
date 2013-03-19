@@ -260,7 +260,7 @@ int main( int argc, char **argv )
 
 
     TMeanShell<float> shell;
-    shell.Clustering( box.dataset.feat, training, box.dataset.dim, m_to_l );
+    shell.Clustering( SubList::create( box.dataset.feat, training ), box.dataset.dim, m_to_l );
     DebugInfo( "entropy after clustering: %.5lf\n", entropy( m_to_l, box, labeled, unlabeled ) );
 
     box.initVoters( inverseMap, m_to_l, numL );

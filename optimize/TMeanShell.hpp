@@ -25,10 +25,9 @@ namespace cat_tree {
 
   private:
 
-    template <typename feature_t>
-    void CenterMeans( std::vector<dataType> &centers, 
-                      const std::vector<feature_t> &feat,
-                      const std::vector<int> &ind,
+    template <typename feature_t, template <typename T=feature_t> class container>
+    void CenterMeans( std::vector<dataType> &centers,
+                      const container<feature_t>& feat,
                       int dim,
                       Bipartite& n_to_l )
     {
@@ -46,7 +45,7 @@ namespace cat_tree {
           int l = ele.first;
           count[l]++;
           for ( int j=0; j<dim; j++ ) {
-            centers[l*dim+j] += feat[ind[n]][j];
+            centers[l*dim+j] += feat[n][j];
           }
         }
       }
@@ -64,9 +63,8 @@ namespace cat_tree {
 
   
 
-    template <typename feature_t>
-    void Clustering( const std::vector<feature_t> &feat,
-                     const std::vector<int> &ind,
+    template <typename feature_t, template <typename T=feature_t> class container>
+    void Clustering( const container<feature_t> &feat,
                      int dim,
                      Bipartite& n_to_l )
     {
@@ -75,7 +73,7 @@ namespace cat_tree {
 
       centers.resize( L * dim, 0.0 );
 
-      CenterMeans( centers, feat, ind, dim, n_to_l );
+      CenterMeans( centers, feat, dim, n_to_l );
 
       Bipartite bimap( N, L );
 
@@ -94,7 +92,7 @@ namespace cat_tree {
             int l = ele.first;
             double dist = 0.0;
             for ( int j=0; j<dim; j++ ) {
-              double tmp = centers[l*dim+j] - feat[ind[n]][j];
+              double tmp = centers[l*dim+j] - feat[n][j];
               dist += tmp * tmp;
             }
             ranker.add( dist, l );
@@ -106,7 +104,7 @@ namespace cat_tree {
           
         } // end for n
 
-        CenterMeans( centers, feat, ind, dim, bimap );
+        CenterMeans( centers, feat, dim, bimap );
 
         // Calculate Energy
         double energy = 0.0;
@@ -115,7 +113,7 @@ namespace cat_tree {
           for ( auto& ele : _to_l ) {
             int l = ele.first;
             for ( int j=0; j<dim; j++ ) {
-              double tmp = centers[l*dim+j] - feat[ind[n]][j];
+              double tmp = centers[l*dim+j] - feat[n][j];
               energy += tmp * tmp;
             }
           }
@@ -143,7 +141,7 @@ namespace cat_tree {
             // calculate l2 distance
             double dist = 0.0;
             for ( int j=0; j<dim; j++ ) {
-              double tmp = centers[l*dim+j] - feat[ind[n]][j];
+              double tmp = centers[l*dim+j] - feat[n][j];
               dist += tmp * tmp;
             }
             dist = sqrt( dist );
