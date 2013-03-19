@@ -176,7 +176,7 @@ int main( int argc, char **argv )
   int numU = static_cast<int>( unlabeled.size() );
   int M = numU + numL;
 
-  /* ---------- Solve ---------- */
+  /* ---------- Construct Heap ---------- */
   std::vector<int> estimated( M, -1 );
   for ( auto &ele : labeled ) {
     estimated[labeled[ele]] = box.dataset.label[labeled[ele]];
@@ -194,6 +194,11 @@ int main( int argc, char **argv )
     progress( i+1, M-1, "Constructing Heap" );
   }
   printf( "\n" );
+
+  /* ---------- labeling ---------- */
+  while ( ! priority.empty() ) {
+    int pair = 
+  }
   
   
   return 0;

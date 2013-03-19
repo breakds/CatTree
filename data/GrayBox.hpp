@@ -124,6 +124,10 @@ namespace cat_tree
               const int end,
               bool debug = false ) const
     {
+      // debugging:
+      std::vector<std::pair<int,int> > perClass( LabelSet::classes, std::make_pair( 0, 0 )  );
+
+      
       int count = 0;
       double vote[LabelSet::classes];
       for ( int i=begin; i<end; i++ ) {
@@ -152,8 +156,27 @@ namespace cat_tree
         
         if ( infer == dataset.label[n] ) {
           count++;
+          // debugging:
+          perClass[dataset.label[n]].first++;
         }
+
+        // debugging:
+        perClass[dataset.label[n]].second++;
       }
+
+      // debugging:
+      WITH_OPEN( out, "perclass.txt", "a" )
+      DebugInfo( "Per Class:" );
+      for ( int k=0; k<LabelSet::classes; k++ ) {
+        printf( "%4d:\t(%d/%d)\t%.2lf\n", k, perClass[k].first, perClass[k].second,
+                static_cast<double>( perClass[k].first ) / perClass[k].second * 100.0 );
+        fprintf( out, "%4d:\t(%d/%d)\t%.2lf\n", k, perClass[k].first, perClass[k].second,
+                 static_cast<double>( perClass[k].first ) / perClass[k].second * 100.0 );
+      }
+      fprintf( out, "----------\n" );
+      
+      END_WITH( out );
+      ResumeOnRet();
       return count;
     }
 

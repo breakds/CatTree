@@ -60,6 +60,39 @@ inline double ExpConv( double dist, double delta )
   return exp( - dist / delta );
 }
 
+inline double entropy( Bipartite &m_to_l, const GrayBox<float,BinaryOnAxis> & box,
+                       const std::vector<int> &labeled,
+                       const std::vector<int> &unlabeled )
+{
+  int L = m_to_l.sizeB();
+  int numL = static_cast<int>( labeled.size() );
+  int count = 0;
+  double d[LabelSet::classes];
+  double E = 0.0;
+  for ( int l=0; l<L; l++ ) {
+    auto& _to_n = m_to_l.getFromSet( l );
+    if ( 0 < _to_n.size() ) {
+      double unit = 1.0 / _to_n.size();
+      count++;
+      algebra::zero( d, LabelSet::classes );
+      for ( auto& ele : _to_n ) {
+        int n = ele.first;
+        if ( n < numL ) {
+          d[box.dataset.label[labeled[n]]] += unit;
+        } else {
+          d[box.dataset.label[unlabeled[n]]] += unit;
+        }
+      }
+      for ( int k=0; k<LabelSet::classes; k++ ) {
+        if ( d[k] > 1e-5 ) {
+          E -= d[k] * log( d[k] );
+        }
+      }
+    }
+  }
+  return E / count;
+}
+
 
 template <typename boxType>
 void debug0( const int classID,
@@ -231,6 +264,7 @@ int main( int argc, char **argv )
       printf( "\n" );
     }
 
+    DebugInfo( "entropy: %.5lf\n", entropy( m_to_l, box, labeled, unlabeled ) );
 
     WITH_OPEN( out, "compare.txt", "a" );
     fprintf( out, "level %d with %d leaves\n", level, box.forest.levelSize( level ) );
@@ -253,7 +287,7 @@ int main( int argc, char **argv )
 
     TMeanShell<float> shell;
     shell.Clustering( box.dataset.feat, training, box.dataset.dim, m_to_l );
-    
+    DebugInfo( "entropy after clustering: %.5lf\n", entropy( m_to_l, box, labeled, unlabeled ) );
 
     box.initVoters( inverseMap, m_to_l, numL );
     double e = solve( numL, numU, &P[0], &m_to_l, &box.q[0], y );
