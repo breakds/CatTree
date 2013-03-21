@@ -20,7 +20,7 @@ namespace cat_tree
     typedef typename ElementOf<featType>::type dataType;
     
     std::vector<featType> feat;
-
+    
     std::vector<int> label;
     
     Forest<dataType,splitter> forest;

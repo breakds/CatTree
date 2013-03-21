@@ -1,8 +1,13 @@
 #pragma once
 
 #include <vector>
+#include <memory>
+#include "RanForest/RanForest.hpp"
 #include "LLPack/algorithms/heap.hpp"
+#include "LLPack/algorithms/algebra.hpp"
 #include "../data/vector.hpp"
+
+using ran_forest::Bipartite;
 
 namespace cat_tree {
 
@@ -10,7 +15,8 @@ namespace cat_tree {
   class TMeanShell
   {
   public:
-    std::vector<dataType> centers;
+    // std::vector<dataType> centers;
+    std::vector<std::unique_ptr<dataType> > centers;
 
     struct Options
     {
@@ -25,8 +31,8 @@ namespace cat_tree {
 
   private:
 
-    template <typename feature_t, template <typename T=feature_t> class container>
-    void CenterMeans( std::vector<dataType> &centers,
+    template <typename feature_t, template <typename T = feature_t, typename... restArgs> class container>
+    void CenterMeans( std::vector<std::unique_ptr<dataType> > &centers,
                       const container<feature_t>& feat,
                       int dim,
                       Bipartite& n_to_l )
@@ -36,6 +42,9 @@ namespace cat_tree {
       int L = n_to_l.sizeB();
         
       std::fill( centers.begin(), centers.end(), 0.0 );
+      for ( auto& ele : centers ) {
+        algebra::zero( ele.get(), dim );
+      }
         
       std::vector<int> count( L, 0 );
         
@@ -45,14 +54,14 @@ namespace cat_tree {
           int l = ele.first;
           count[l]++;
           for ( int j=0; j<dim; j++ ) {
-            centers[l*dim+j] += feat[n][j];
+            centers[l][j] += feat[n][j];
           }
         }
       }
         
       for ( int l=0; l<L; l++ ) {
         if ( 0 < count[l] ) {
-          scale( &centers[l*dim], dim, static_cast<float>( 1.0 / count[l] ) );
+          scale( centers[l].get(), dim, static_cast<float>( 1.0 / count[l] ) );
         }
       }
     }
@@ -63,7 +72,7 @@ namespace cat_tree {
 
   
 
-    template <typename feature_t, template <typename T=feature_t> class container>
+    template <typename feature_t, template <typename T = feature_t, typename... restArgs> class container>
     void Clustering( const container<feature_t> &feat,
                      int dim,
                      Bipartite& n_to_l )
@@ -71,7 +80,11 @@ namespace cat_tree {
       int N = n_to_l.sizeA();
       int L = n_to_l.sizeB();
 
-      centers.resize( L * dim, 0.0 );
+      centers.resize( L );
+      for ( auto& ele : centers ) {
+        ele.reset( new dataType[dim] );
+      }
+      
 
       CenterMeans( centers, feat, dim, n_to_l );
 
@@ -92,7 +105,7 @@ namespace cat_tree {
             int l = ele.first;
             double dist = 0.0;
             for ( int j=0; j<dim; j++ ) {
-              double tmp = centers[l*dim+j] - feat[n][j];
+              double tmp = centers[l][j] - feat[n][j];
               dist += tmp * tmp;
             }
             ranker.add( dist, l );
@@ -113,7 +126,7 @@ namespace cat_tree {
           for ( auto& ele : _to_l ) {
             int l = ele.first;
             for ( int j=0; j<dim; j++ ) {
-              double tmp = centers[l*dim+j] - feat[n][j];
+              double tmp = centers[l][j] - feat[n][j];
               energy += tmp * tmp;
             }
           }
@@ -141,7 +154,7 @@ namespace cat_tree {
             // calculate l2 distance
             double dist = 0.0;
             for ( int j=0; j<dim; j++ ) {
-              double tmp = centers[l*dim+j] - feat[n][j];
+              double tmp = centers[l][j] - feat[n][j];
               dist += tmp * tmp;
             }
             dist = sqrt( dist );

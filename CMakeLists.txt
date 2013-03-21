@@ -198,6 +198,9 @@ ADD_EXECUTABLE(clustring experiment/psuedoKmean.cpp)
 ADD_EXECUTABLE(plant experiment/CamvidPlant.cpp)
 TARGET_LINK_LIBRARIES(plant ${OPENCV})
 
+ADD_EXECUTABLE(reconstruct experiment/CamvidReconstruction.cpp)
+TARGET_LINK_LIBRARIES(reconstruct ${OPENCV})
+
 
 
 
