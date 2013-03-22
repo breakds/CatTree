@@ -123,10 +123,9 @@ int main( int argc, char **argv )
   std::vector<std::string> lblList;
   Album<float> album;
   init( imgList, lblList, album );
-  
 
   RedBox<FeatImage<float>::PatchProxy,BinaryOnAxis> box;
-  BuildDataset( album, lblList, box.feat, box.label, env["sampling-margin"], env["sampling-stride"] );
+  BuildDataset( album, lblList, box.feat, box.label, env["sampling-stride"], env["sampling-margin"] );
 
 
 

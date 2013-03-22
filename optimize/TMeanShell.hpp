@@ -41,7 +41,6 @@ namespace cat_tree {
       int N = n_to_l.sizeA();
       int L = n_to_l.sizeB();
         
-      std::fill( centers.begin(), centers.end(), 0.0 );
       for ( auto& ele : centers ) {
         algebra::zero( ele.get(), dim );
       }
@@ -54,7 +53,7 @@ namespace cat_tree {
           int l = ele.first;
           count[l]++;
           for ( int j=0; j<dim; j++ ) {
-            centers[l][j] += feat[n][j];
+            centers[l].get()[j] += feat[n][j];
           }
         }
       }
@@ -105,7 +104,7 @@ namespace cat_tree {
             int l = ele.first;
             double dist = 0.0;
             for ( int j=0; j<dim; j++ ) {
-              double tmp = centers[l][j] - feat[n][j];
+              double tmp = centers[l].get()[j] - feat[n][j];
               dist += tmp * tmp;
             }
             ranker.add( dist, l );
@@ -126,7 +125,7 @@ namespace cat_tree {
           for ( auto& ele : _to_l ) {
             int l = ele.first;
             for ( int j=0; j<dim; j++ ) {
-              double tmp = centers[l][j] - feat[n][j];
+              double tmp = centers[l].get()[j] - feat[n][j];
               energy += tmp * tmp;
             }
           }
@@ -154,7 +153,7 @@ namespace cat_tree {
             // calculate l2 distance
             double dist = 0.0;
             for ( int j=0; j<dim; j++ ) {
-              double tmp = centers[l][j] - feat[n][j];
+              double tmp = centers[l].get()[j] - feat[n][j];
               dist += tmp * tmp;
             }
             dist = sqrt( dist );
