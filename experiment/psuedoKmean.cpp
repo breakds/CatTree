@@ -12,6 +12,8 @@
 #include "../optimize/TMeanShell.hpp"
 #include "RanForest/RanForest.hpp"
 
+#include "PatTk/data/FeatImage.hpp"
+
 
 using namespace EnvironmentVariable;
 using namespace ran_forest;
@@ -292,6 +294,10 @@ int main( int argc, char **argv )
     }
     END_WITH( out );
   }
+
+  ran_forest::Forest<float,BinaryOnAxis> forest;
+  std::vector<PatTk::FeatImage<float>::PatchProxy> patches;
+  std::move( forest.batch_query<PatTk::FeatImage<float>::PatchProxy, std::vector>( patches, -1 ) );
 
   return 0;
 }

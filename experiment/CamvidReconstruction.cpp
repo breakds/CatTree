@@ -67,8 +67,11 @@ public:
 
   inline void write( int id, std::string filename )
   {
+    DebugInfo( "id = %d, %dx%d", id, cnts[id].rows, cnts[id].cols );
     cv::Mat output = cv::Mat::zeros( cnts[id].rows, cnts[id].cols, CV_8UC3 );
+
     for ( int i=0; i<cnts[id].rows; i++ ) {
+      DebugInfo( "i=%d\n", i );
       for ( int j=0; j<cnts[id].cols; j++ ) {
         if ( 1e-5 < cnts[id].at<int>( i, j ) ) {
           for ( int c = 0; c < 3; c ++ ) {
@@ -111,17 +114,15 @@ void BuildDataset( Album<float>& album,
 {
   feat.clear();
   label.clear();
-
+  
   for ( auto& img : album ) {
     for ( int i = margin; i < img.rows - margin; i += stride ) {
       for ( int j = margin; j < img.cols - margin; j += stride ) {
         feat.push_back( img.Spawn( i, j ) );
-        // debugging:
-        ResumeOnRet();
       }
     }
   }
-  
+
   for ( auto& s : lblList ) {
     cv::Mat lbl = cv::imread( s );
     for ( int i = margin; i < lbl.rows - margin; i += stride ) {
@@ -185,6 +186,7 @@ int main( int argc, char **argv )
     // clustering
     Bipartite n_to_l = std::move( forest.batch_query( box.feat, level ) );
     TMeanShell<float> shell;
+    shell.options.maxIter = 10;
     shell.Clustering( box.feat, box.dim(), n_to_l  );
     // BGR voters
     int L = n_to_l.sizeB();
@@ -202,7 +204,7 @@ int main( int argc, char **argv )
         }
         algebra::scale( bgrVoters[l].get(), bgrDim, static_cast<float>( 1.0 / s ) );
       }
-      progressbar.update( l, "calculating voters" );
+      progressbar.update( l + 1, "calculating voters" );
     }
 
     // voting
@@ -219,7 +221,7 @@ int main( int argc, char **argv )
                        env["paste-size"], alpha, bgrVoters[l].get() );
         }
       }
-      progressbar.update( n, "voting" );
+      progressbar.update( n + 1, "voting" );
     }
 
     // output
