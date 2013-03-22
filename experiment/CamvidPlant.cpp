@@ -145,6 +145,7 @@ int main( int argc, char **argv )
 
   Info( "Total Nodes:  %d", forest.nodeNum() );
   Info( "Total Leaves: %d", forest.levelSize( forest.depth() ) );
+  Info( "Depth: %d", forest.depth() );
 
   forest.write( env["forest-dir"] );
   Done( "forest written to %s", env["forest-dir"].c_str() );

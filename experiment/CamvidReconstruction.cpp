@@ -42,7 +42,7 @@ public:
   inline void clear()
   {
     for ( auto& ele : imgs ) std::fill( ele.begin<float>(), ele.end<float>(), 0.0f );
-    for ( auto& ele : cnts ) std::fill( ele.begin<float>(), ele.end<float>(), 0 );
+    for ( auto& ele : cnts ) std::fill( ele.begin<float>(), ele.end<float>(), 0.0f );
   }
 
   inline void paste( int id, int i, int j, int size, float alpha, float* content )
@@ -51,11 +51,11 @@ public:
     for ( int di = -radius; di <= radius; di ++ ) {
       if ( i + di < 0 ) continue;
       if ( i + di >= cnts[id].rows ) break;
-      int x = i + di;
+      int y = i + di;
       for ( int dj = -radius; dj <= radius; dj ++ ) {
         if ( j + dj < 0 ) continue;
         if ( j + dj >= cnts[id].cols ) break;
-        int y = j + dj;
+        int x = j + dj;
         imgs[id].at<cv::Vec3f>( y, x )[0] += content[ (di * size + dj) * 3 ] * alpha;
         imgs[id].at<cv::Vec3f>( y, x )[1] += content[ (di * size + dj) * 3 + 1 ] * alpha;
         imgs[id].at<cv::Vec3f>( y, x )[2] += content[ (di * size + dj) * 3 + 2 ] * alpha;
@@ -67,15 +67,13 @@ public:
 
   inline void write( int id, std::string filename )
   {
-    DebugInfo( "id = %d, %dx%d", id, cnts[id].rows, cnts[id].cols );
     cv::Mat output = cv::Mat::zeros( cnts[id].rows, cnts[id].cols, CV_8UC3 );
 
     for ( int i=0; i<cnts[id].rows; i++ ) {
-      DebugInfo( "i=%d\n", i );
       for ( int j=0; j<cnts[id].cols; j++ ) {
         if ( 1e-5 < cnts[id].at<int>( i, j ) ) {
           for ( int c = 0; c < 3; c ++ ) {
-            output.at<cv::Vec3b>( i, j )[c] = imgs[id].at<cv::Vec3f>( i, j )[c] / cnts[id].at<int>( i, j );
+            output.at<cv::Vec3b>( i, j )[c] = static_cast<uchar>( imgs[id].at<cv::Vec3f>( i, j )[c] / cnts[id].at<float>( i, j ) * 255.0 );
           }
         }
       }
@@ -102,7 +100,7 @@ void init( std::vector<std::string>& imgList, std::vector<std::string>& lblList,
     bgrAlbum.push( std::move( cvFeat<BGR_FLOAT>::gen( ele ) ) );
     progress( ++i, n, "Loading Album" );
   }
-  bgrAlbum.SetPatchSize( env["paste-size"] );
+  bgrAlbum.SetPatchSize( env["paste-size"].toInt() );
   bgrAlbum.SetPatchStride( 1 );
   printf( "\n" );
 }
@@ -158,15 +156,36 @@ int main( int argc, char **argv )
 
   RedBox<FeatImage<float>::PatchProxy,BinaryOnSubspace> box;
   BuildDataset( album, lblList, box.feat, box.label, env["sampling-stride"], env["sampling-margin"] );
+
+
+  // debugging:
+  // {
+  //   float vote[3];
+  //   cv::Mat test( bgrAlbum(0).rows, bgrAlbum(0).cols, CV_8UC3 );
+  //   for ( int i=0; i<bgrAlbum(0).rows; i++ ) {
+  //     for ( int j=0; j<bgrAlbum(0).cols; j++ ) {
+  //       bgrAlbum(0).FetchPatch( i, j, vote );
+  //       test.at<cv::Vec3b>( i, j )[0] = static_cast<uchar>( vote[0] * 255.0 );
+  //       test.at<cv::Vec3b>( i, j )[1] = static_cast<uchar>( vote[1] * 255.0 );
+  //       test.at<cv::Vec3b>( i, j )[2] = static_cast<uchar>( vote[2] * 255.0 );
+  //     }
+  //   }
+  //   cv::imshow( "test", test );
+  //   cv::waitKey();
+  // }
+
+
+
+  
   printf( "dim: %d\n", box.dim() );
 
   Forest<float,BinaryOnAxis> forest( env["forest-dir"] );
-
+  
 
   /* ---------- Reconstruction ---------- */
   int depth = forest.depth();
 
-  std::vector<std::unique_ptr<float> >  bgrVoters( forest.nodeNum() );
+  std::vector<std::unique_ptr<float> > bgrVoters( forest.nodeNum() );
   int bgrDim = bgrAlbum(0).GetPatchDim();
   for ( auto& ele : bgrVoters ) {
     ele.reset( new float[bgrDim] );
@@ -182,12 +201,10 @@ int main( int argc, char **argv )
 
   ProgressBar progressbar;
 
-  for ( int level = 4; level < depth; level++ ) {
-    // clustering
+  for ( int level = 7; level < 38; level += 5 ) {
+    // naive
     Bipartite n_to_l = std::move( forest.batch_query( box.feat, level ) );
-    TMeanShell<float> shell;
-    shell.options.maxIter = 10;
-    shell.Clustering( box.feat, box.dim(), n_to_l  );
+
     // BGR voters
     int L = n_to_l.sizeB();
     progressbar.reset( L );
@@ -218,10 +235,9 @@ int main( int argc, char **argv )
           const int &l = ele.first;
           const double &alpha = ele.first;
           board.paste( box.feat[n].id(), box.feat[n].y, box.feat[n].x,
-                       env["paste-size"], alpha, bgrVoters[l].get() );
+                       env["paste-size"].toInt(), alpha, bgrVoters[l].get() );
         }
       }
-      progressbar.update( n + 1, "voting" );
     }
 
     // output
@@ -229,6 +245,57 @@ int main( int argc, char **argv )
       system( strf( "mkdir -p %s/%s", env["output-dir"].c_str(), imgList[i].c_str() ).c_str() );
       board.write( i, strf( "%s/%s/%d.png", env["output-dir"].c_str(), imgList[i].c_str(), level ) );
     }
+
+
+    // clustering
+    TMeanShell<float> shell;
+    shell.options.maxIter = 100;
+    shell.options.replicate = 5;
+    shell.Clustering( box.feat, box.dim(), n_to_l  );
+
+    // BGR voters
+    L = n_to_l.sizeB();
+    progressbar.reset( L );
+    for ( int l=0; l<L; l++ ) {
+      auto& _to_n = n_to_l.to( l );
+      if ( 0 < _to_n.size() ) {
+        double s = 0.0;
+        for ( auto& ele : _to_n ) {
+          const int &n = ele.first;
+          const double& alpha = ele.second;
+          s += alpha;
+          bgrAlbum(box.feat[n].id()).FetchPatch( box.feat[n].y, box.feat[n].x, vote );
+          algebra::addScaledTo( bgrVoters[l].get(), vote, bgrDim, static_cast<float>( alpha ) );
+        }
+        algebra::scale( bgrVoters[l].get(), bgrDim, static_cast<float>( 1.0 / s ) );
+      }
+      progressbar.update( l + 1, "calculating voters" );
+    }
+
+    // voting
+    board.clear();
+    N = n_to_l.sizeA();
+    progressbar.reset( N );
+    for ( int n=0; n<N; n++ ) {
+      auto& _to_l = n_to_l.from( n );
+      if ( 0 < _to_l.size() ) {
+        for ( auto& ele : _to_l ) {
+          const int &l = ele.first;
+          const double &alpha = ele.first;
+          board.paste( box.feat[n].id(), box.feat[n].y, box.feat[n].x,
+                       env["paste-size"].toInt(), alpha, bgrVoters[l].get() );
+        }
+      }
+    }
+
+    // output
+    for ( int i=0; i<static_cast<int>( imgList.size() ); i++ ) {
+      system( strf( "mkdir -p %s/%s/compare", env["output-dir"].c_str(), imgList[i].c_str() ).c_str() );
+      board.write( i, strf( "%s/%s/compare/%d.png", env["output-dir"].c_str(), imgList[i].c_str(), level ) );
+    }
+
+
+
   }
 
   return 0;
