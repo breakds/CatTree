@@ -11,7 +11,7 @@
 #include "RanForest/RanForest.hpp"
 #include "../data/RedBox.hpp"
 #include "../optimize/power_solver.hpp"
-#include "../optimize/TMeanShell.hpp"
+#include "../optimize/TMeanShellFancy.hpp"
 
 using namespace EnvironmentVariable;
 using namespace ran_forest;
@@ -201,7 +201,7 @@ int main( int argc, char **argv )
 
   ProgressBar progressbar;
 
-  for ( int level = 7; level < 38; level += 5 ) {
+  for ( int level = 14; level < 30; level += 5 ) {
     // naive
     Bipartite n_to_l = std::move( forest.batch_query( box.feat, level ) );
 
@@ -249,9 +249,9 @@ int main( int argc, char **argv )
 
     // clustering
     TMeanShell<float> shell;
-    shell.options.maxIter = 100;
+    shell.options.maxIter = 10;
     shell.options.replicate = 5;
-    shell.Clustering( box.feat, box.dim(), n_to_l  );
+    shell.Clustering( box.feat, box.dim(), n_to_l );
 
     // BGR voters
     L = n_to_l.sizeB();
