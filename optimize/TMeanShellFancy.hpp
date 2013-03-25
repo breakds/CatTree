@@ -1,5 +1,6 @@
 #pragma once
 
+#include <omp.h>
 #include <vector>
 #include <memory>
 #include "RanForest/RanForest.hpp"
@@ -102,6 +103,8 @@ namespace cat_tree {
                                {
                                  // update D also
                                  double e = 0.0;
+
+#                                pragma omp parallel for
                                  for ( size_t n=0; n<N; n++ ) {
                                    double *tmp = &store.D[n][0];
                                    auto& _to_l = graph.from( n );
