@@ -4,6 +4,7 @@
 #include <vector>
 #include <memory>
 #include "RanForest/RanForest.hpp"
+#include "LLPack/utils/time.hpp"
 #include "LLPack/algorithms/heap.hpp"
 #include "LLPack/algorithms/algebra.hpp"
 #include "proj_grad.hpp"
@@ -103,8 +104,8 @@ namespace cat_tree {
                                {
                                  // update D also
                                  double e = 0.0;
-
-#                                pragma omp parallel for
+                                 timer::tic();
+#                                pragma omp parallel for reduction(+ : e)
                                  for ( size_t n=0; n<N; n++ ) {
                                    double *tmp = &store.D[n][0];
                                    auto& _to_l = graph.from( n );
@@ -118,6 +119,7 @@ namespace cat_tree {
                                    }
                                    e += norm2( tmp, dim );
                                  }
+                                 DebugInfo( "%.6lf sec elapsed.", timer::utoc() );
                                  return e;
                                }, 
 
