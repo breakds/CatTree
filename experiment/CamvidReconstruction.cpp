@@ -78,7 +78,7 @@ public:
         }
       }
     }
-    cv::imwrite( filename, output );
+    // cv::imwrite( filename, output );
   }
 };
 

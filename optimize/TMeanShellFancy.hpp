@@ -20,7 +20,7 @@ namespace cat_tree {
   {
   public:
     // std::vector<dataType> centers;
-    std::vector<std::unique_ptr<dataType> > centers;
+    std::vector<std::unique_ptr<double> > centers;
 
     struct Options
     {
@@ -52,45 +52,15 @@ namespace cat_tree {
       size_t L = n_to_l.sizeB();
       
       
-      // centers.resize( L );
-      // for ( auto& ele : centers ) {
-      //   ele.reset( new dataType[dim] );
-      // }
+      centers.resize( L );
+      for ( auto& ele : centers ) {
+        ele.reset( new double[dim] );
+      }
 
-      
+      double last_e = 0.0;
 
       Bipartite bimap( N, L );
-      
-      // initialization
-      ProjGradSolver<optStorage> solveCenters( L * dim, 
-                                               [&dim,&N,&L,&n_to_l,&feat]
-                                               ( std::vector<double>& x, optStorage& store ) 
-                                               {
-                                                 for ( size_t l=0; l<L; l++ ) {
-                                                   auto& _to_n = n_to_l.to( l );
-                                                   if ( 0 < _to_n.size() ) {
-                                                     double s = 0.0;
-                                                     for ( auto& ele : _to_n ) {
-                                                       const size_t n = static_cast<size_t>( ele.first );
-                                                       const double& alpha = ele.second;
-                                                       for ( int j=0; j<dim; j++ ) {
-                                                         x[l*dim+j] += alpha * feat[n][j];
-                                                       }
-                                                       s += alpha;
-                                                     }
-                                                     scale( &x[l*dim], dim, 1.0 / s );
-                                                   }
-                                                 }
-                                                 // D(n) = x(n) - \sum alpha(n,l) * C(l)
-                                                 store.D.resize( N );
-                                                 for ( size_t n = 0; n < N; n ++ ) {
-                                                   store.D[n].resize( dim );
-                                                 }
-                                               } );
-      solveCenters.options.converge = 100.0;
-      
-      double last_e = 0.0;
-      
+
       for ( int iter=0; iter<options.maxIter; iter++ ) {
         
         Info( "TMeans (fancy) iter %d", iter );
@@ -99,72 +69,63 @@ namespace cat_tree {
         
         // update centers
         Info( "Updating Centers ..." );
-        auto e = solveCenters( [&dim,&N,&L,&graph,&feat] // energy
-                               ( const std::vector<double>& x, optStorage& store ) 
-                               {
-                                 // update D also
-                                 double e = 0.0;
-                                 timer::tic();
-#                                pragma omp parallel for reduction(+ : e)
-                                 for ( size_t n=0; n<N; n++ ) {
-                                   double *tmp = &store.D[n][0];
-                                   auto& _to_l = graph.from( n );
-                                   for ( int j=0; j<dim; j++ ) {
-                                     tmp[j] = feat[n][j];
-                                   }
-                                   for ( auto& ele : _to_l ) {
-                                     const size_t l = static_cast<size_t>( ele.first );
-                                     const double& alpha = ele.second;
-                                     algebra::minusScaledFrom( tmp, &x[l*dim], dim, alpha );
-                                   }
-                                   e += norm2( tmp, dim );
-                                 }
-                                 DebugInfo( "%.6lf sec elapsed.", timer::utoc() );
-                                 return e;
-                               }, 
-
-                               [&dim,&N,&L,&graph,&feat] // negative derivative
-                               ( std::vector<double>& d, const std::vector<double> __attribute__((__unused__)) &x, 
-                                 optStorage& store )
-                               {
-                                 // D(n) = x(n) - \sum_l alpha(n,l) * C(l) 
-                                 // - deriv(l) = \sum_n [ D(n) * alpha(n,l) ]
-                                 double *tmp = &d[0];
-                                 for ( size_t l=0; l<L; l++ ) {
-                                   algebra::zero( tmp, dim );
-                                   auto& _to_n = graph.to( l );
-                                   for ( auto& ele : _to_n ) {
-                                     const size_t n = static_cast<size_t>( ele.first );
-                                     const double& alpha = ele.second;
-                                     addScaledTo( tmp, &store.D[n][0], dim, alpha );
-                                   }
-                                   tmp += dim;
-                                 }
-                               },
-
-                               [&dim,&N,&L,&graph,&feat] // projection
-                               ( std::vector<double>& x, optStorage __attribute__((__unused__)) &store )
-                               {
-                                 double *c = &x[0];
-                                 double tmp[dim];
-                                 for ( size_t l=0; l<L; l++ ) {
-                                   algebra::copy( tmp, c, dim );
-                                   algebra::watershed( tmp, c, dim );
-                                 }
-                               } );
-
         
+        for ( size_t l = 0; l < L; l ++ ) {
+          zero( centers[l].get(), dim );
+          auto& _to_n = graph.to( l );
+          if ( 0 < _to_n.size() ) {
+            double s = 0.0;
+            for ( auto& ele : _to_n ) {
+              const int &n = ele.first;
+              const double &alpha = ele.second;
+              for ( int j=0; j<dim; j++ ) {
+                centers[l].get()[j] += feat[n][j] * alpha;
+              }
+              s += alpha;
+            }
+            algebra::scale( centers[l].get(), dim, 1.0 / s );
+          }
+        }
+
+        // calculate energy
+        double e = 0.0;
+        {
+          double D[dim];
+          for ( size_t n=0; n<N; n++ ) {
+            auto& _to_l = graph.from( n );
+            for ( int j=0; j<dim; j++ ) {
+              D[j] = feat[n][j];
+            }
+
+            
+            for ( auto& ele : _to_l ) {
+              const int& l = static_cast<size_t>( ele.first );
+              const double& alpha = ele.second;
+              algebra::minusScaledFrom( D, centers[l].get(), dim, alpha );
+            }
+            e += norm2( D, dim );
+            // debugging
+            if ( e != e ) {
+              DebugInfo( "e = %.6lf, n = %d", e, n );
+              ResumeOnRet();
+            }
+          }
+        }
+        
+        Info( "Energy: %.6lf", e );
+
         if ( 0 < iter && fabs( e - last_e ) < options.converge ) {
           break;
         } else {
           last_e = e;
         }
 
-
+        
         // update alphas
         Info( "Updating Graph ..." );
         bimap.clear();
-        
+
+
 
         ProgressBar alphaProgress( N_int );
         for ( int n=0; n<N_int; n++ ) {
@@ -184,7 +145,7 @@ namespace cat_tree {
           
           solveAlphas.options.iterEnergyInfo = false;
           
-          solveAlphas( [&dim,&N,&L,&_to_l,&n,&feat,&solveCenters,&supportSize] // energy
+          solveAlphas( [&dim,&N,&L,&_to_l,&n,&feat,this,&supportSize] // energy
                        ( const std::vector<double>& alphas, alphaStorage& store ) 
                        {
                          double *D = &store.D[0];
@@ -194,23 +155,23 @@ namespace cat_tree {
                          for ( int i=0; i<supportSize; i++ ) {
                            size_t l = static_cast<size_t>( _to_l[i].first );
                            // D -= alpha(i) * C(l)
-                           algebra::minusScaledFrom( D, &solveCenters.x[ l * dim ], dim, alphas[i] );
+                           algebra::minusScaledFrom( D, centers[l].get(), dim, alphas[i] );
                          }
                          return algebra::norm2( D, dim );
                        },
                        
-                       [&dim,&N,&L,&_to_l,&n,&feat,&solveCenters,&supportSize] // negative derivative
+                       [&dim,&N,&L,&_to_l,&n,&feat,this,&supportSize] // negative derivative
                        ( std::vector<double>& d, const std::vector<double> __attribute__ ((__unused__)) &alphas, 
                          alphaStorage& store )
                        {
                          // -deriv(i) = C(l)^T D(i)
                          for ( int i=0; i<supportSize; i++ ) {
                            size_t l = static_cast<size_t>( _to_l[i].first );
-                           d[i] = algebra::dotprod( &solveCenters.x[l*dim], &store.D[0], dim );
+                           d[i] = algebra::dotprod( centers[l].get(), &store.D[0], dim );
                          }
                        },
 
-                       [&dim,&N,&L,&_to_l,&n,&feat,&solveCenters,&supportSize] // projection
+                       [&dim,&N,&L,&_to_l,&n,&feat,&supportSize] // projection
                        ( std::vector<double>& alphas, alphaStorage __attribute__ ((__unused__)) &store )
                        {
                          double tmp[supportSize];
@@ -221,6 +182,13 @@ namespace cat_tree {
           heap<double,int> ranker( options.replicate );
           for ( int i=0; i<supportSize; i++ ) {
             ranker.add( solveAlphas.x[i], i );
+          }
+
+          // debugging:
+          if ( 146 == n ) {
+            DebugInfo( "prelim alpha: " );
+            printVec( &solveAlphas.x[0], supportSize );
+            ResumeOnRet();
           }
 
 
@@ -235,10 +203,15 @@ namespace cat_tree {
             algebra::copy( tmp, alphas, supportSize );
             algebra::watershed( tmp, alphas, supportSize );
           }
-
+          
           // update bimap
           for ( int j=0; j<ranker.len; j++ ) {
             bimap.add( n, _to_l[ranker[j]].first, alphas[j] );
+            // debugging:
+            if ( 146 == n ) {
+              DebugInfo( "bimap.add( n = %d, l = %d, alpha = %.6lf )", n, _to_l[ranker[j]].first, alphas[j] );
+              ResumeOnRet();
+            }
           }
           
           alphaProgress.update( n + 1, "updating graph" );
