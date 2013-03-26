@@ -78,7 +78,7 @@ public:
         }
       }
     }
-    // cv::imwrite( filename, output );
+    cv::imwrite( filename, output );
   }
 };
 
@@ -195,13 +195,11 @@ int main( int argc, char **argv )
 
   float vote[bgrDim];
 
-  Pastable board( album );
-
   system( strf( "mkdir -p %s", env["output-dir"].c_str() ).c_str() );
 
   ProgressBar progressbar;
 
-  for ( int level = 14; level < 30; level += 5 ) {
+  for ( int level = env["start-level"].toInt(); level < depth; level += env["level-stride"].toInt() ) {
     // naive
     Bipartite n_to_l = std::move( forest.batch_query( box.feat, level ) );
 
@@ -210,6 +208,7 @@ int main( int argc, char **argv )
     progressbar.reset( L );
     for ( int l=0; l<L; l++ ) {
       auto& _to_n = n_to_l.to( l );
+      algebra::zero( bgrVoters[l].get(), bgrDim );
       if ( 0 < _to_n.size() ) {
         double s = 0.0;
         for ( auto& ele : _to_n ) {
@@ -225,25 +224,29 @@ int main( int argc, char **argv )
     }
 
     // voting
-    board.clear();
     int N = n_to_l.sizeA();
-    progressbar.reset( N );
-    for ( int n=0; n<N; n++ ) {
-      auto& _to_l = n_to_l.from( n );
-      if ( 0 < _to_l.size() ) {
-        for ( auto& ele : _to_l ) {
-          const int &l = ele.first;
-          const double &alpha = ele.first;
-          board.paste( box.feat[n].id(), box.feat[n].y, box.feat[n].x,
-                       env["paste-size"].toInt(), alpha, bgrVoters[l].get() );
+
+    {
+      Pastable board( album );
+
+      progressbar.reset( N );
+      for ( int n=0; n<N; n++ ) {
+        auto& _to_l = n_to_l.from( n );
+        if ( 0 < _to_l.size() ) {
+          for ( auto& ele : _to_l ) {
+            const int &l = ele.first;
+            const double &alpha = ele.first;
+            board.paste( box.feat[n].id(), box.feat[n].y, box.feat[n].x,
+                         env["paste-size"].toInt(), alpha, bgrVoters[l].get() );
+          }
         }
       }
-    }
 
-    // output
-    for ( int i=0; i<static_cast<int>( imgList.size() ); i++ ) {
-      system( strf( "mkdir -p %s/%s", env["output-dir"].c_str(), imgList[i].c_str() ).c_str() );
-      board.write( i, strf( "%s/%s/%d.png", env["output-dir"].c_str(), imgList[i].c_str(), level ) );
+      // output
+      for ( int i=0; i<static_cast<int>( imgList.size() ); i++ ) {
+        system( strf( "mkdir -p %s/%s", env["output-dir"].c_str(), imgList[i].c_str() ).c_str() );
+        board.write( i, strf( "%s/%s/%d.png", env["output-dir"].c_str(), imgList[i].c_str(), level ) );
+      }
     }
 
 
@@ -258,6 +261,7 @@ int main( int argc, char **argv )
     progressbar.reset( L );
     for ( int l=0; l<L; l++ ) {
       auto& _to_n = n_to_l.to( l );
+      algebra::zero( bgrVoters[l].get(), bgrDim );
       if ( 0 < _to_n.size() ) {
         double s = 0.0;
         for ( auto& ele : _to_n ) {
@@ -273,27 +277,28 @@ int main( int argc, char **argv )
     }
 
     // voting
-    board.clear();
-    N = n_to_l.sizeA();
-    progressbar.reset( N );
-    for ( int n=0; n<N; n++ ) {
-      auto& _to_l = n_to_l.from( n );
-      if ( 0 < _to_l.size() ) {
-        for ( auto& ele : _to_l ) {
-          const int &l = ele.first;
-          const double &alpha = ele.first;
-          board.paste( box.feat[n].id(), box.feat[n].y, box.feat[n].x,
-                       env["paste-size"].toInt(), alpha, bgrVoters[l].get() );
+    {
+      Pastable board( album );
+      N = n_to_l.sizeA();
+      progressbar.reset( N );
+      for ( int n=0; n<N; n++ ) {
+        auto& _to_l = n_to_l.from( n );
+        if ( 0 < _to_l.size() ) {
+          for ( auto& ele : _to_l ) {
+            const int &l = ele.first;
+            const double &alpha = ele.first;
+            board.paste( box.feat[n].id(), box.feat[n].y, box.feat[n].x,
+                         env["paste-size"].toInt(), alpha, bgrVoters[l].get() );
+          }
         }
       }
-    }
 
-    // output
-    for ( int i=0; i<static_cast<int>( imgList.size() ); i++ ) {
-      system( strf( "mkdir -p %s/%s/compare", env["output-dir"].c_str(), imgList[i].c_str() ).c_str() );
-      board.write( i, strf( "%s/%s/compare/%d.png", env["output-dir"].c_str(), imgList[i].c_str(), level ) );
+      // output
+      for ( int i=0; i<static_cast<int>( imgList.size() ); i++ ) {
+        system( strf( "mkdir -p %s/%s/compare", env["output-dir"].c_str(), imgList[i].c_str() ).c_str() );
+        board.write( i, strf( "%s/%s/compare/%d.png", env["output-dir"].c_str(), imgList[i].c_str(), level ) );
+      }
     }
-
 
 
   }

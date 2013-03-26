@@ -27,7 +27,9 @@ namespace cat_tree {
       int maxIter;
       int replicate;
       double converge;
-      Options() : maxIter(100), replicate(10), converge(1e-5) {}
+      double epsilon; // if the weight of an edge in the bipartite
+                      // graph is lower than this, it will be ignored.
+      Options() : maxIter(100), replicate(10), converge(1e-5), epsilon(1e-5) {}
     } options;
 
     struct optStorage {
@@ -104,11 +106,6 @@ namespace cat_tree {
               algebra::minusScaledFrom( D, centers[l].get(), dim, alpha );
             }
             e += norm2( D, dim );
-            // debugging
-            if ( e != e ) {
-              DebugInfo( "e = %.6lf, n = %d", e, n );
-              ResumeOnRet();
-            }
           }
         }
         
@@ -179,18 +176,15 @@ namespace cat_tree {
                          algebra::watershed( tmp, &alphas[0], supportSize );
                        } );
 
+          
+          
+
+          
           heap<double,int> ranker( options.replicate );
+          
           for ( int i=0; i<supportSize; i++ ) {
-            ranker.add( solveAlphas.x[i], i );
+            ranker.add( -solveAlphas.x[i], i );
           }
-
-          // debugging:
-          if ( 146 == n ) {
-            DebugInfo( "prelim alpha: " );
-            printVec( &solveAlphas.x[0], supportSize );
-            ResumeOnRet();
-          }
-
 
           // post projection
           double alphas[ranker.len];
@@ -200,17 +194,15 @@ namespace cat_tree {
 
           {
             double tmp[ranker.len];
-            algebra::copy( tmp, alphas, supportSize );
-            algebra::watershed( tmp, alphas, supportSize );
+            algebra::copy( tmp, alphas, ranker.len );
+            algebra::watershed( tmp, alphas, ranker.len );
           }
           
+
           // update bimap
           for ( int j=0; j<ranker.len; j++ ) {
-            bimap.add( n, _to_l[ranker[j]].first, alphas[j] );
-            // debugging:
-            if ( 146 == n ) {
-              DebugInfo( "bimap.add( n = %d, l = %d, alpha = %.6lf )", n, _to_l[ranker[j]].first, alphas[j] );
-              ResumeOnRet();
+            if ( alphas[j] > options.epsilon ) {
+              bimap.add( n, _to_l[ranker[j]].first, alphas[j] );
             }
           }
           
