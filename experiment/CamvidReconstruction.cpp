@@ -13,7 +13,7 @@
 #include "RanForest/RanForest.hpp"
 #include "../data/RedBox.hpp"
 #include "../optimize/power_solver.hpp"
-#include "../optimize/TMeanShell.hpp"
+#include "../optimize/TMeanShellFancy.hpp"
 
 using namespace EnvironmentVariable;
 using namespace ran_forest;
@@ -177,6 +177,7 @@ Bipartite extracRepresentatives( const RedBox<FeatImage<float>::PatchProxy,Binar
     }
   }
   Done( "random clustering. total class num: %d", n_to_l.sizeB() );
+  return n_to_l;
 }
 
 
@@ -233,7 +234,11 @@ int main( int argc, char **argv )
     Bipartite n_to_l = std::move( forest.batch_query( box.feat, level ) );
 
 
-    Bipartite n_to_c = std::move( extracRepresentatives( box, 0.2 ) );
+    // Bipartite n_to_c = std::move( extracRepresentatives( box, 0.1 ) );
+    // n_to_c.write( "n_to_c.dat" );
+    // Done( "wrote" );
+
+
     // BGR voters
     int L = n_to_l.sizeB();
     progressbar.reset( L );

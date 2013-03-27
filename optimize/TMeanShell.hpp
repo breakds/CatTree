@@ -30,7 +30,31 @@ namespace cat_tree {
 
     TMeanShell() : centers(), options() {}
 
-    
+    void writeCenters( std::string filename )
+    {
+      WITH_OPEN( out, filename.c_str(), "w" );
+      int len = static_cast<int>( centers.size() );
+      fwrite( &len, sizeof(int), 1, len );
+      for ( auto& ele : centers ) {
+        fwrite( &options.dim, sizeof(int), 1, out );
+        fwrite( ele.get(), sizeof(dataType), options.dim, out );
+      }
+      END_WITH( out );
+    }
+
+
+    void readCenters( std::string filename )
+    {
+      WITH_OPEN( in, filename.c_str(), "r" );
+      int len = 0;
+      fread( &len, sizeof(int), 1, len );
+      centers.resize( len );
+      for ( auto& ele : centers ) {
+        fread( &options.dim, sizeof(int), 1, in );
+        fread( ele.get(), sizeof(dataType), options.dim, in );
+      }
+      END_WITH( in );
+    }
 
   private:
 
