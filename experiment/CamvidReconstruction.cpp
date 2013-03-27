@@ -5,6 +5,8 @@
 #include "LLPack/utils/extio.hpp"
 #include "LLPack/utils/Environment.hpp"
 #include "LLPack/utils/pathname.hpp"
+#include "LLPack/algorithm/random.hpp"
+#include "LLPack/algorithm/algebra.hpp"
 #include "PatTk/data/Label.hpp"
 #include "PatTk/data/FeatImage.hpp"
 #include "PatTk/interfaces/opencv_aux.hpp"
@@ -133,6 +135,31 @@ void BuildDataset( Album<float>& album,
       }
     }
   }
+}
+
+
+Bipartite extracRepresentatives( const RedBox<FeatImage<float>::PatchProxy,BinaryOnSubspace> &box,
+                                 double th )
+{
+  int N = static_cast<int>( box.feat.size() );
+  Bipartite n_to_l( N, 100 );
+  std::vector<int> remain = std::move( rndgen::seq( N ) );
+  
+  int L = 0;
+  while ( ! remain.empty() ) {
+    std::vector<int> hold;
+    hold.reserve( remain.size() );
+    int i = remain[randperm( static_cast<int>( remain.size() ), 1 )[0]];
+    for ( auto& ele : remain ) {
+      if ( ele != i ) {
+        if ( algebra::dist2( 
+      }
+    }
+    
+  }
+
+  
+
 }
 
 
