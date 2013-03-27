@@ -58,7 +58,7 @@ namespace cat_tree {
       for ( auto& ele : centers ) {
         ele.reset( new double[dim] );
       }
-
+      
       double last_e = 0.0;
 
       Bipartite bimap( N, L );
@@ -125,6 +125,8 @@ namespace cat_tree {
 
 
         ProgressBar alphaProgress( N_int );
+        int completed = 0;
+#       pragma omp parallel for
         for ( int n=0; n<N_int; n++ ) {
           auto& _to_l = n_to_l.from( n );
           int supportSize = _to_l.size();
@@ -205,8 +207,12 @@ namespace cat_tree {
               bimap.add( n, _to_l[ranker[j]].first, alphas[j] );
             }
           }
-          
-          alphaProgress.update( n + 1, "updating graph" );
+
+#         pragma omp critical
+          {
+            completed ++;
+            alphaProgress.update( completed, "updating graph" );
+          }
         } // end for n
         
       }

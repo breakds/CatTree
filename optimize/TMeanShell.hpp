@@ -162,7 +162,7 @@ namespace cat_tree {
 
             s += ele.second;
           }
-
+          
           s = 1.0 / s;
           for ( auto& ele : _to_l ) {
             ele.second *= s;

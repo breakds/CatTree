@@ -48,18 +48,20 @@ public:
   inline void paste( int id, int i, int j, int size, float alpha, float* content )
   {
     int radius = size >> 1;
+    float *cp = content;
     for ( int di = -radius; di <= radius; di ++ ) {
-      if ( i + di < 0 ) continue;
-      if ( i + di >= cnts[id].rows ) break;
       int y = i + di;
       for ( int dj = -radius; dj <= radius; dj ++ ) {
-        if ( j + dj < 0 ) continue;
-        if ( j + dj >= cnts[id].cols ) break;
         int x = j + dj;
-        imgs[id].at<cv::Vec3f>( y, x )[0] += content[ (di * size + dj) * 3 ] * alpha;
-        imgs[id].at<cv::Vec3f>( y, x )[1] += content[ (di * size + dj) * 3 + 1 ] * alpha;
-        imgs[id].at<cv::Vec3f>( y, x )[2] += content[ (di * size + dj) * 3 + 2 ] * alpha;
-        cnts[id].at<float>( y, x ) += alpha;
+        if ( 0 <= y && y < cnts[id].rows &&
+             0 <= x && x < cnts[id].cols ) {
+          imgs[id].at<cv::Vec3f>( y, x )[0] += *(cp++) * alpha;
+          imgs[id].at<cv::Vec3f>( y, x )[1] += *(cp++) * alpha;
+          imgs[id].at<cv::Vec3f>( y, x )[2] += *(cp++) * alpha;
+          cnts[id].at<float>( y, x ) += alpha;
+        } else {
+          cp += 3;
+        }
       }
     }
   }
@@ -158,30 +160,11 @@ int main( int argc, char **argv )
   BuildDataset( album, lblList, box.feat, box.label, env["sampling-stride"], env["sampling-margin"] );
 
 
-  // debugging:
-  // {
-  //   float vote[3];
-  //   cv::Mat test( bgrAlbum(0).rows, bgrAlbum(0).cols, CV_8UC3 );
-  //   for ( int i=0; i<bgrAlbum(0).rows; i++ ) {
-  //     for ( int j=0; j<bgrAlbum(0).cols; j++ ) {
-  //       bgrAlbum(0).FetchPatch( i, j, vote );
-  //       test.at<cv::Vec3b>( i, j )[0] = static_cast<uchar>( vote[0] * 255.0 );
-  //       test.at<cv::Vec3b>( i, j )[1] = static_cast<uchar>( vote[1] * 255.0 );
-  //       test.at<cv::Vec3b>( i, j )[2] = static_cast<uchar>( vote[2] * 255.0 );
-  //     }
-  //   }
-  //   cv::imshow( "test", test );
-  //   cv::waitKey();
-  // }
-
-
-
-  
   printf( "dim: %d\n", box.dim() );
 
   Forest<float,BinaryOnAxis> forest( env["forest-dir"] );
-  
 
+  
   /* ---------- Reconstruction ---------- */
   int depth = forest.depth();
 
@@ -199,7 +182,9 @@ int main( int argc, char **argv )
 
   ProgressBar progressbar;
 
-  for ( int level = env["start-level"].toInt(); level < depth; level += env["level-stride"].toInt() ) {
+
+  DebugInfo( "level %d: %d\n", env["start-level"].toInt(), forest.levelSize( env["start-level"].toInt() ) );
+  for ( int level = env["start-level"].toInt(); level < env["start-level"]+1; level += env["level-stride"].toInt() ) {
     // naive
     Bipartite n_to_l = std::move( forest.batch_query( box.feat, level ) );
 
@@ -252,13 +237,15 @@ int main( int argc, char **argv )
 
     // clustering
     TMeanShell<float> shell;
-    shell.options.maxIter = 10;
+    shell.options.maxIter = 20;
     shell.options.replicate = 5;
     shell.Clustering( box.feat, box.dim(), n_to_l );
 
     // BGR voters
     L = n_to_l.sizeB();
     progressbar.reset( L );
+    // debugging
+    int validNodeCount = 0;
     for ( int l=0; l<L; l++ ) {
       auto& _to_n = n_to_l.to( l );
       algebra::zero( bgrVoters[l].get(), bgrDim );
@@ -272,9 +259,14 @@ int main( int argc, char **argv )
           algebra::addScaledTo( bgrVoters[l].get(), vote, bgrDim, static_cast<float>( alpha ) );
         }
         algebra::scale( bgrVoters[l].get(), bgrDim, static_cast<float>( 1.0 / s ) );
+        // debugging:
+        validNodeCount ++;
       }
       progressbar.update( l + 1, "calculating voters" );
     }
+
+    // debugging:
+    DebugInfo( "valid node #: %d\n", validNodeCount );
 
     // voting
     {
