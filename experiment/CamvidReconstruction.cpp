@@ -5,8 +5,8 @@
 #include "LLPack/utils/extio.hpp"
 #include "LLPack/utils/Environment.hpp"
 #include "LLPack/utils/pathname.hpp"
-#include "LLPack/algorithm/random.hpp"
-#include "LLPack/algorithm/algebra.hpp"
+#include "LLPack/algorithms/random.hpp"
+#include "LLPack/algorithms/algebra.hpp"
 #include "PatTk/data/Label.hpp"
 #include "PatTk/data/FeatImage.hpp"
 #include "PatTk/interfaces/opencv_aux.hpp"
@@ -146,20 +146,35 @@ Bipartite extracRepresentatives( const RedBox<FeatImage<float>::PatchProxy,Binar
   std::vector<int> remain = std::move( rndgen::seq( N ) );
   
   int L = 0;
+  int dim = box.feat[0].dim();
+  
+  ProgressBar progressbar;
+  progressbar.reset( N );
   while ( ! remain.empty() ) {
     std::vector<int> hold;
     hold.reserve( remain.size() );
-    int i = remain[randperm( static_cast<int>( remain.size() ), 1 )[0]];
-    for ( auto& ele : remain ) {
-      if ( ele != i ) {
-        if ( algebra::dist2( 
+    int i = remain[rndgen::randperm( static_cast<int>( remain.size() ), 1 )[0]];
+    n_to_l.grow_b( L + 1 );
+    for ( auto& j : remain ) {
+      if ( j != i ) {
+        double dist2 = 0.0;
+        for ( int c=0; c<dim; c++ ) {
+          double tmp = box.feat[i][c] - box.feat[j][c];
+          dist2 += tmp * tmp;
+        }
+        if ( dist2 < th ) {
+          n_to_l.add( j, L, 1.0 );
+          continue;
+        }          
       }
+      n_to_l.add( j, L, 1.0 );
     }
-    
+    L++;
+    remain = hold;
+    progressbar.update( N - static_cast<int>( remain.size() ), 
+                        "random clustering" );
   }
-
-  
-
+  Done( "random clustering. total class num: %d", n_to_l.sizeB() );
 }
 
 
