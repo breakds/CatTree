@@ -32,9 +32,9 @@ namespace cat_tree {
 
     void writeCenters( std::string filename )
     {
-      WITH_OPEN( out, filename.c_str(), "w" );
+      WITH_OPEN( out, filename.c_str(), "wb" );
       int len = static_cast<int>( centers.size() );
-      fwrite( &len, sizeof(int), 1, len );
+      fwrite( &len, sizeof(int), 1, out );
       for ( auto& ele : centers ) {
         fwrite( &options.dim, sizeof(int), 1, out );
         fwrite( ele.get(), sizeof(dataType), options.dim, out );
@@ -45,9 +45,9 @@ namespace cat_tree {
 
     void readCenters( std::string filename )
     {
-      WITH_OPEN( in, filename.c_str(), "r" );
+      WITH_OPEN( in, filename.c_str(), "rb" );
       int len = 0;
-      fread( &len, sizeof(int), 1, len );
+      fread( &len, sizeof(int), 1, in );
       centers.resize( len );
       for ( auto& ele : centers ) {
         fread( &options.dim, sizeof(int), 1, in );
