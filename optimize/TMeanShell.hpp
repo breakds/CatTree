@@ -23,11 +23,14 @@ namespace cat_tree {
       int maxIter;
       int replicate;
       double converge;
-      Options() : maxIter(100), replicate(10), converge(1e-5) {}
+      int dim;
+      Options() : maxIter(100), replicate(10), converge(1e-5), dim(10) {}
     } options;
 
 
     TMeanShell() : centers(), options() {}
+
+    
 
   private:
 
@@ -64,7 +67,7 @@ namespace cat_tree {
         }
       }
     }
-
+    
 
 
   public:
@@ -78,11 +81,13 @@ namespace cat_tree {
     {
       int N = n_to_l.sizeA();
       int L = n_to_l.sizeB();
-
+      
       centers.resize( L );
       for ( auto& ele : centers ) {
         ele.reset( new dataType[dim] );
       }
+
+      options.dim = dim;
       
 
       CenterMeans( centers, feat, dim, n_to_l );
@@ -171,6 +176,24 @@ namespace cat_tree {
       }
       n_to_l = std::move( bimap );
     }
-    
+
+
+    template <typename feature_t>
+    inline void concentrate( const feature_t &p, std::vector<int> &membership )
+    {
+      heap<double,int> ranker( options.replicate );
+      for ( auto& l : membership ) {
+        double dist = 0.0;
+        for ( int j=0; j<options.dim; j++ ) {
+          double tmp = centers[l].get()[j] - p[j];
+          dist += tmp * tmp;
+        }
+        ranker.add( dist, l );
+      }
+      membership.resize( ranker.len );
+      for ( int i=0; i<ranker.len; i++ ) {
+        membership[i] = ranker[i];
+      }
+    }
   };
 }

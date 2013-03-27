@@ -13,7 +13,7 @@
 #include "RanForest/RanForest.hpp"
 #include "../data/RedBox.hpp"
 #include "../optimize/power_solver.hpp"
-#include "../optimize/TMeanShellFancy.hpp"
+#include "../optimize/TMeanShell.hpp"
 
 using namespace EnvironmentVariable;
 using namespace ran_forest;
@@ -156,23 +156,25 @@ Bipartite extracRepresentatives( const RedBox<FeatImage<float>::PatchProxy,Binar
     int i = remain[rndgen::randperm( static_cast<int>( remain.size() ), 1 )[0]];
     n_to_l.grow_b( L + 1 );
     for ( auto& j : remain ) {
-      if ( j != i ) {
-        double dist2 = 0.0;
-        for ( int c=0; c<dim; c++ ) {
-          double tmp = box.feat[i][c] - box.feat[j][c];
-          dist2 += tmp * tmp;
-        }
-        if ( dist2 < th ) {
-          n_to_l.add( j, L, 1.0 );
-          continue;
-        }          
+      double dist2 = 0.0;
+      for ( int c=0; c<dim; c++ ) {
+        double tmp = box.feat[i][c] - box.feat[j][c];
+        dist2 += tmp * tmp;
       }
-      n_to_l.add( j, L, 1.0 );
+      if ( dist2 < th ) {
+        n_to_l.add( j, L, 1.0 );
+        continue;
+      } else {
+        hold.push_back( j );
+      }
     }
     L++;
     remain = hold;
     progressbar.update( N - static_cast<int>( remain.size() ), 
                         "random clustering" );
+    if ( 0 == L % 100 ) {
+      printf( "L: %d\n", L );
+    }
   }
   Done( "random clustering. total class num: %d", n_to_l.sizeB() );
 }
@@ -230,6 +232,8 @@ int main( int argc, char **argv )
     // naive
     Bipartite n_to_l = std::move( forest.batch_query( box.feat, level ) );
 
+
+    Bipartite n_to_c = std::move( extracRepresentatives( box, 0.2 ) );
     // BGR voters
     int L = n_to_l.sizeB();
     progressbar.reset( L );
