@@ -143,6 +143,8 @@ int main( int argc, char **argv )
                                          options,
                                          env["propotion-per-tree"].toDouble() );
 
+  
+
   Info( "Total Nodes:  %d", forest.nodeNum() );
   Info( "Total Leaves: %d", forest.levelSize( forest.depth() ) );
   Info( "Depth: %d", forest.depth() );
