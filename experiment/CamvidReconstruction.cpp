@@ -289,7 +289,7 @@ int main( int argc, char **argv )
     // clustering
     TMeanShell<float> shell;
     shell.options.maxIter = 20;
-    shell.options.replicate = 5;
+    shell.options.replicate = env["replicate"];
     shell.Clustering( box.feat, box.dim(), n_to_l );
 
     // BGR voters

@@ -201,6 +201,9 @@ TARGET_LINK_LIBRARIES(plant ${OPENCV})
 ADD_EXECUTABLE(reconstruct experiment/CamvidReconstruction.cpp)
 TARGET_LINK_LIBRARIES(reconstruct ${OPENCV})
 
+ADD_EXECUTABLE(gen experiment/FeatureGen.cpp)
+TARGET_LINK_LIBRARIES(gen ${OPENCV})
+
 
 
 
