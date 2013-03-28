@@ -133,9 +133,10 @@ int main( int argc, char **argv )
   typename ran_forest::SimpleKernel<typename FeatImage<float>::PatchProxy, BinaryOnAxis>::Options options;
 
   options.dim = box.feat[0].dim();
-  options.converge = 0.005;
-  options.stopNum = 3;
+  options.converge = 0.05;
+  options.stopNum = 10;
   options.numHypo = 10;
+  options.projDim = 5;
     
   Forest<float,BinaryOnAxis> forest;
   forest.grow<ran_forest::SimpleKernel>( env["forest-size"],
@@ -144,20 +145,26 @@ int main( int argc, char **argv )
                                          env["propotion-per-tree"].toDouble() );
 
   // debugging:
-  std::vector<bool> re
-  bool depth = forest.tree(0).reduce<bool>
-    ( []( const ran_forest::Tree<float,BinaryOnAxis> &node,
-          const std::vector<bool> __attribute__((__unused__) &res )
-      {
-        
-        return true;
-      },
-      []( const ran_forest::Tree<float,BinaryOnAxis> &leaf )
-      {
-        return true;
-      } );
+  // std::vector<bool> filled( options.dim );
+  // bool depth = forest.tree(0).reduce<bool>
+  //   ( [&filled]( const ran_forest::Tree<float,BinaryOnAxis> &node,
+  //                const std::vector<bool> __attribute__((__unused__)) &res )
+  //     {
+  //       filled[node.getJudger().component] = true;
+  //       return true;
+  //     },
+  //     [&filled]( const ran_forest::Tree<float,BinaryOnAxis> __attribute__((__unused__)) &leaf )
+  //     {
+  //       return true;
+  //     } );
 
-  DebugInfo( "%d vs %d", depth, forest.tree(0).depth() );
+  // for ( int i=0; i<options.dim; i++ ) {
+  //   if ( filled[i] ) {
+  //     DebugInfo( "%d touched", i );
+  //   }
+  // }
+  
+  // DebugInfo( "%d vs %d", depth, forest.tree(0).depth() );
 
 
   

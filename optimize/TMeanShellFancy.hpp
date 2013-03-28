@@ -71,7 +71,8 @@ namespace cat_tree {
         
         // update centers
         Info( "Updating Centers ..." );
-        
+
+#       pragma parallel for
         for ( size_t l = 0; l < L; l ++ ) {
           zero( centers[l].get(), dim );
           auto& _to_n = graph.to( l );
