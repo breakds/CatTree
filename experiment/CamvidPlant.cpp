@@ -143,8 +143,22 @@ int main( int argc, char **argv )
                                          options,
                                          env["propotion-per-tree"].toDouble() );
 
-  
+  // debugging:
+  bool depth = forest.tree(0).reduce<bool>
+    ( []( const ran_forest::Tree<float,BinaryOnAxis> &node,
+          const std::vector<bool> &res )
+      {
+        return true;
+      },
+      []( const ran_forest::Tree<float,BinaryOnAxis> &leaf )
+      {
+        return true;
+      } );
 
+  DebugInfo( "%d vs %d", depth, forest.tree(0).depth() );
+
+
+  
   Info( "Total Nodes:  %d", forest.nodeNum() );
   Info( "Total Leaves: %d", forest.levelSize( forest.depth() ) );
   Info( "Depth: %d", forest.depth() );
