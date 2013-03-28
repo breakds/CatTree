@@ -203,7 +203,7 @@ namespace cat_tree {
 
 
     template <typename feature_t>
-    inline void concentrate( const feature_t &p, std::vector<int> &membership )
+    inline void concentrate( const feature_t &p, std::vector<int> &membership ) const
     {
       heap<double,int> ranker( options.replicate );
       for ( auto& l : membership ) {
