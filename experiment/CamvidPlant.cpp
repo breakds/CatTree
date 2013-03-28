@@ -144,10 +144,12 @@ int main( int argc, char **argv )
                                          env["propotion-per-tree"].toDouble() );
 
   // debugging:
+  std::vector<bool> re
   bool depth = forest.tree(0).reduce<bool>
     ( []( const ran_forest::Tree<float,BinaryOnAxis> &node,
-          const std::vector<bool> &res )
+          const std::vector<bool> __attribute__((__unused__) &res )
       {
+        
         return true;
       },
       []( const ran_forest::Tree<float,BinaryOnAxis> &leaf )

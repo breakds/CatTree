@@ -51,6 +51,7 @@ namespace cat_tree {
       centers.resize( len );
       for ( auto& ele : centers ) {
         fread( &options.dim, sizeof(int), 1, in );
+        ele.reset( new dataType[options.dim] );
         fread( ele.get(), sizeof(dataType), options.dim, in );
       }
       END_WITH( in );
