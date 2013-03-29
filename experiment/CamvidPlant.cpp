@@ -80,7 +80,7 @@ void partition( std::vector<int> &label, std::vector<int> &fed,
   for ( auto& ele : fed ) {
     classified[label[ele]].push_back( ele );
   }
-
+  
   fed.clear();
   extended.clear();
 
@@ -124,36 +124,35 @@ int main( int argc, char **argv )
   Album<float> album;
   init( imgList, lblList, album );
 
-  RedBox<FeatImage<float>::PatchProxy,BinaryOnAxis> box;
+  RedBox<FeatImage<float>::PatchProxy,BinaryOnDistance> box;
   BuildDataset( album, lblList, box.feat, box.label, env["sampling-stride"], env["sampling-margin"] );
 
 
 
   /* ---------- Load/Construct Forest ---------- */
-  typename ran_forest::SimpleKernel<typename FeatImage<float>::PatchProxy, BinaryOnAxis>::Options options;
+  typename ran_forest::BallKernel<typename FeatImage<float>::PatchProxy, BinaryOnDistance>::Options options;
 
   options.dim = box.feat[0].dim();
   options.converge = 0.05;
-  options.stopNum = 10;
-  options.numHypo = 10;
-  options.projDim = 5;
-    
-  Forest<float,BinaryOnAxis> forest;
-  forest.grow<ran_forest::SimpleKernel>( env["forest-size"],
-                                         box.feat,
-                                         options,
-                                         env["propotion-per-tree"].toDouble() );
+  options.stopNum = 50;
+  options.numHypo = 5;
+  
+  Forest<float,BinaryOnDistance> forest;
+  forest.grow<ran_forest::BallKernel>( env["forest-size"],
+                                       box.feat,
+                                       options,
+                                       env["propotion-per-tree"].toDouble() );
 
   // debugging:
   // std::vector<bool> filled( options.dim );
   // bool depth = forest.tree(0).reduce<bool>
-  //   ( [&filled]( const ran_forest::Tree<float,BinaryOnAxis> &node,
+  //   ( [&filled]( const ran_forest::Tree<float,BinaryOnDistance> &node,
   //                const std::vector<bool> __attribute__((__unused__)) &res )
   //     {
   //       filled[node.getJudger().component] = true;
   //       return true;
   //     },
-  //     [&filled]( const ran_forest::Tree<float,BinaryOnAxis> __attribute__((__unused__)) &leaf )
+  //     [&filled]( const ran_forest::Tree<float,BinaryOnDistance> __attribute__((__unused__)) &leaf )
   //     {
   //       return true;
   //     } );

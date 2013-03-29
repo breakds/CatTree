@@ -138,7 +138,7 @@ void BuildDataset( Album<float>& album,
 }
 
 
-Bipartite extracRepresentatives( const RedBox<FeatImage<float>::PatchProxy,BinaryOnSubspace> &box,
+Bipartite extracRepresentatives( const RedBox<FeatImage<float>::PatchProxy,BinaryOnDistance> &box,
                                  double th )
 {
   int N = static_cast<int>( box.feat.size() );
@@ -201,13 +201,13 @@ int main( int argc, char **argv )
 
 
 
-  RedBox<FeatImage<float>::PatchProxy,BinaryOnSubspace> box;
+  RedBox<FeatImage<float>::PatchProxy,BinaryOnDistance> box;
   BuildDataset( album, lblList, box.feat, box.label, env["sampling-stride"], env["sampling-margin"] );
 
 
   printf( "dim: %d\n", box.dim() );
 
-  Forest<float,BinaryOnAxis> forest( env["forest-dir"] );
+  Forest<float,BinaryOnDistance> forest( env["forest-dir"] );
 
   
   /* ---------- Reconstruction ---------- */
