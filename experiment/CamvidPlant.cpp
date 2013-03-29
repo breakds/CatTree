@@ -134,7 +134,7 @@ int main( int argc, char **argv )
 
   options.dim = box.feat[0].dim();
   options.converge = 0.05;
-  options.stopNum = 50;
+  options.stopNum = 200;
   options.numHypo = 5;
   
   Forest<float,BinaryOnDistance> forest;
