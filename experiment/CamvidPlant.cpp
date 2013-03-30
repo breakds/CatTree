@@ -4,6 +4,7 @@
 #include "LLPack/utils/extio.hpp"
 #include "LLPack/utils/Environment.hpp"
 #include "LLPack/utils/pathname.hpp"
+#include "LLPack/utils/time.hpp"
 #include "PatTk/data/Label.hpp"
 #include "PatTk/data/FeatImage.hpp"
 #include "PatTk/interfaces/opencv_aux.hpp"
@@ -133,15 +134,18 @@ int main( int argc, char **argv )
   typename ran_forest::BallKernel<typename FeatImage<float>::PatchProxy, BinaryOnDistance>::Options options;
 
   options.dim = box.feat[0].dim();
-  options.converge = 0.05;
-  options.stopNum = 200;
+  options.converge = 6.0;
+  options.stopNum = 10;
   options.numHypo = 5;
   
   Forest<float,BinaryOnDistance> forest;
+  
+  timer::tic();
   forest.grow<ran_forest::BallKernel>( env["forest-size"],
                                        box.feat,
                                        options,
                                        env["propotion-per-tree"].toDouble() );
+  Done( "time consumption: %.3lf sec.", timer::utoc() );
 
   // debugging:
   // std::vector<bool> filled( options.dim );
