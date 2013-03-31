@@ -208,7 +208,6 @@ int main( int argc, char **argv )
   printf( "dim: %d\n", box.dim() );
 
   Forest<float,BinaryOnDistance> forest( env["forest-dir"] );
-
   
   /* ---------- Reconstruction ---------- */
   int depth = forest.depth();
