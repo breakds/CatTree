@@ -177,7 +177,7 @@ set(CMAKE_CXX_FLAGS_GPROF "-O1 -pg")
 # caltech101 experiment
 # ADD_EXECUTABLE(setup experiment/setup.cpp)
 # ADD_EXECUTABLE(plant experiment/plant.cpp)
-ADD_EXECUTABLE(clustring experiment/psuedoKmean.cpp)
+# ADD_EXECUTABLE(clustring experiment/psuedoKmean.cpp)
 # ADD_EXECUTABLE(prim experiment/prim.cpp)
 
 
@@ -201,8 +201,8 @@ TARGET_LINK_LIBRARIES(plant ${OPENCV})
 ADD_EXECUTABLE(reconstruct experiment/CamvidReconstruction.cpp)
 TARGET_LINK_LIBRARIES(reconstruct ${OPENCV})
 
-ADD_EXECUTABLE(gen experiment/FeatureGen.cpp)
-TARGET_LINK_LIBRARIES(gen ${OPENCV})
+# ADD_EXECUTABLE(gen experiment/FeatureGen.cpp)
+# TARGET_LINK_LIBRARIES(gen ${OPENCV})
 
 
 

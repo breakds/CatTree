@@ -24,7 +24,7 @@ namespace cat_tree {
       int replicate;
       double converge;
       int dim;
-      Options() : maxIter(100), replicate(10), converge(1e-5), dim(10) {}
+      Options() : maxIter(20), replicate(10), converge(1e-5), dim(10) {}
     } options;
 
 
@@ -68,7 +68,7 @@ namespace cat_tree {
       
       int N = n_to_l.sizeA();
       int L = n_to_l.sizeB();
-        
+
       for ( auto& ele : centers ) {
         algebra::zero( ele.get(), dim );
       }
@@ -113,7 +113,6 @@ namespace cat_tree {
       }
 
       options.dim = dim;
-      
 
       CenterMeans( centers, feat, dim, n_to_l );
 

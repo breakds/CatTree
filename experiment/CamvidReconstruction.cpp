@@ -13,7 +13,7 @@
 #include "RanForest/RanForest.hpp"
 #include "../data/RedBox.hpp"
 #include "../optimize/power_solver.hpp"
-#include "../optimize/TMeanShellFancy.hpp"
+#include "../optimize/TMeanShell.hpp"
 
 using namespace EnvironmentVariable;
 using namespace ran_forest;
@@ -208,7 +208,7 @@ int main( int argc, char **argv )
   printf( "dim: %d\n", box.dim() );
 
   Forest<float,BinaryOnDistance> forest( env["forest-dir"] );
-  
+
   /* ---------- Reconstruction ---------- */
   int depth = forest.depth();
 
@@ -230,7 +230,10 @@ int main( int argc, char **argv )
   DebugInfo( "level %d: %d\n", env["start-level"].toInt(), forest.levelSize( env["start-level"].toInt() ) );
   for ( int level = env["start-level"].toInt(); level < env["start-level"]+1; level += env["level-stride"].toInt() ) {
     // naive
+    // debugging:
     Bipartite n_to_l = std::move( forest.batch_query( box.feat, level ) );
+    // n_to_l.write( "tmp.graph" );
+
 
 
     // Bipartite n_to_c = std::move( extracRepresentatives( box, 0.1 ) );
