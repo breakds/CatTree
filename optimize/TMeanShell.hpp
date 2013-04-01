@@ -15,7 +15,6 @@ namespace cat_tree {
   class TMeanShell
   {
   public:
-    // std::vector<dataType> centers;
     std::vector<std::unique_ptr<dataType> > centers;
 
     struct Options
@@ -66,29 +65,22 @@ namespace cat_tree {
                       Bipartite& n_to_l )
     {
       
-      int N = n_to_l.sizeA();
       int L = n_to_l.sizeB();
 
-      for ( auto& ele : centers ) {
-        algebra::zero( ele.get(), dim );
-      }
-        
-      std::vector<int> count( L, 0 );
-        
-      for ( int n=0; n<N; n++ ) {
-        auto& _to_l = n_to_l.from( n );
-        for ( auto& ele : _to_l ) {
-          int l = ele.first;
-          count[l]++;
-          for ( int j=0; j<dim; j++ ) {
-            centers[l].get()[j] += feat[n][j];
-          }
-        }
-      }
-        
+#     pragma omp parallel for
       for ( int l=0; l<L; l++ ) {
-        if ( 0 < count[l] ) {
-          scale( centers[l].get(), dim, static_cast<float>( 1.0 / count[l] ) );
+        algebra::zero( centers[l].get(), dim );
+        auto& _to_n = n_to_l.to( l );
+        if ( 0 < _to_n.size() ) {
+          int count = 0;
+          for ( auto& ele : _to_n ) {
+            count++;
+            int n = ele.first;
+            for ( int j=0; j<dim; j++ ) {
+              centers[l].get()[j] += feat[n][j];
+            }
+          }
+          algebra::scale( centers[l].get(), dim, static_cast<float>( 1.0 / count ) );
         }
       }
     }
@@ -126,6 +118,7 @@ namespace cat_tree {
         
         Info( "TMeans iter %d", iter );
         // pick centers
+#       pragma omp parallel for
         for ( int n=0; n<N; n++ ) {
           auto& _to_l = n_to_l.from( n );
           heap<double,int> ranker( options.replicate );
@@ -138,7 +131,8 @@ namespace cat_tree {
             }
             ranker.add( dist, l );
           }
-
+          
+#         pragma omp critical
           for ( int j=0; j<ranker.len; j++ ) {
             bimap.add( n, ranker[j], 1.0 / options.replicate );
           }
@@ -149,6 +143,7 @@ namespace cat_tree {
 
         // Calculate Energy
         double energy = 0.0;
+#       pragma omp parallel for reduction(+ : energy)
         for ( int n=0; n<N; n++ ) {
           auto& _to_l = bimap.from( n );
           for ( auto& ele : _to_l ) {
@@ -171,6 +166,7 @@ namespace cat_tree {
       } // end for iter
 
       // update alphas
+#     pragma omp parallel for
       for ( int n=0; n<N; n++ ) {
         auto& _to_l = bimap.getSetFrom( n );
         if ( 0 < _to_l.size() ) {
