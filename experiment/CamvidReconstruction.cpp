@@ -219,6 +219,7 @@ int main( int argc, char **argv )
   int depth = forest.depth();
 
   std::vector<std::unique_ptr<float> > bgrVoters( forest.nodeNum() );
+  std::vector<float> bgrWts( forest.nodeNum() );
   int bgrDim = bgrAlbum(0).GetPatchDim();
   for ( auto& ele : bgrVoters ) {
     ele.reset( new float[bgrDim] );
@@ -254,15 +255,15 @@ int main( int argc, char **argv )
       auto& _to_n = n_to_l.to( l );
       algebra::zero( bgrVoters[l].get(), bgrDim );
       if ( 0 < _to_n.size() ) {
-        double s = 0.0;
+        bgrWts[l] = 0.0;
         for ( auto& ele : _to_n ) {
           const int &n = ele.first;
           const double& alpha = ele.second;
-          s += alpha;
+          bgrWts[l] += alpha;
           bgrAlbum(box.feat[n].id()).FetchPatch( box.feat[n].y, box.feat[n].x, vote );
           algebra::addScaledTo( bgrVoters[l].get(), vote, bgrDim, static_cast<float>( alpha ) );
         }
-        algebra::scale( bgrVoters[l].get(), bgrDim, static_cast<float>( 1.0 / s ) );
+        algebra::scale( bgrVoters[l].get(), bgrDim, static_cast<float>( 1.0 / bgrWts[l] ) );
       }
       progressbar.update( l + 1, "calculating voters" );
     }
@@ -272,7 +273,7 @@ int main( int argc, char **argv )
 
     {
       Pastable board( album );
-
+      float tmpVoter[bgrDim];
       progressbar.reset( N );
       for ( int n=0; n<N; n++ ) {
         auto& _to_l = n_to_l.from( n );
@@ -280,8 +281,18 @@ int main( int argc, char **argv )
           for ( auto& ele : _to_l ) {
             const int &l = ele.first;
             const double &alpha = ele.first;
-            board.paste( box.feat[n].id(), box.feat[n].y, box.feat[n].x,
-                         env["paste-size"].toInt(), alpha, bgrVoters[l].get() );
+            if ( env["self-voting"].toInt() ) {
+              board.paste( box.feat[n].id(), box.feat[n].y, box.feat[n].x,
+                           env["paste-size"].toInt(), alpha, bgrVoters[l].get() );
+            } else {
+              algebra::copy( tmpVoter, bgrVoters[l].get(), bgrDim );
+              algebra::scale( tmpVoter, bgrDim, bgrWts[l] );
+              bgrAlbum(box.feat[n].id()).FetchPatch( box.feat[n].y, box.feat[n].x, vote );
+              algebra::minusScaledFrom( tmpVoter, vote, bgrDim, static_cast<float>( alpha ) );
+              algebra::scale( tmpVoter, bgrDim, 1.0f / static_cast<float>( bgrWts[l] - alpha ) );
+              board.paste( box.feat[n].id(), box.feat[n].y, box.feat[n].x,
+                           env["paste-size"].toInt(), alpha, tmpVoter );
+            }
           }
         }
       }
@@ -309,15 +320,15 @@ int main( int argc, char **argv )
       auto& _to_n = n_to_l.to( l );
       algebra::zero( bgrVoters[l].get(), bgrDim );
       if ( 0 < _to_n.size() ) {
-        double s = 0.0;
+        bgrWts[l] = 0.0;
         for ( auto& ele : _to_n ) {
           const int &n = ele.first;
           const double& alpha = ele.second;
-          s += alpha;
+          bgrWts[l] += alpha;
           bgrAlbum(box.feat[n].id()).FetchPatch( box.feat[n].y, box.feat[n].x, vote );
           algebra::addScaledTo( bgrVoters[l].get(), vote, bgrDim, static_cast<float>( alpha ) );
         }
-        algebra::scale( bgrVoters[l].get(), bgrDim, static_cast<float>( 1.0 / s ) );
+        algebra::scale( bgrVoters[l].get(), bgrDim, static_cast<float>( 1.0 / bgrWts[l] ) );
         // debugging:
         validNodeCount ++;
       }
@@ -328,7 +339,7 @@ int main( int argc, char **argv )
     // voting
     {
       Pastable board( album );
-      N = n_to_l.sizeA();
+      float tmpVoter[bgrDim];
       progressbar.reset( N );
       for ( int n=0; n<N; n++ ) {
         auto& _to_l = n_to_l.from( n );
@@ -336,8 +347,18 @@ int main( int argc, char **argv )
           for ( auto& ele : _to_l ) {
             const int &l = ele.first;
             const double &alpha = ele.first;
-            board.paste( box.feat[n].id(), box.feat[n].y, box.feat[n].x,
-                         env["paste-size"].toInt(), alpha, bgrVoters[l].get() );
+            if ( env["self-voting"].toInt() ) {
+              board.paste( box.feat[n].id(), box.feat[n].y, box.feat[n].x,
+                           env["paste-size"].toInt(), alpha, bgrVoters[l].get() );
+            } else {
+              algebra::copy( tmpVoter, bgrVoters[l].get(), bgrDim );
+              algebra::scale( tmpVoter, bgrDim, bgrWts[l] );
+              bgrAlbum(box.feat[n].id()).FetchPatch( box.feat[n].y, box.feat[n].x, vote );
+              algebra::minusScaledFrom( tmpVoter, vote, bgrDim, static_cast<float>( alpha ) );
+              algebra::scale( tmpVoter, bgrDim, 1.0f / static_cast<float>( bgrWts[l] - alpha ) );
+              board.paste( box.feat[n].id(), box.feat[n].y, box.feat[n].x,
+                           env["paste-size"].toInt(), alpha, tmpVoter );
+            }
           }
         }
       }
@@ -351,9 +372,11 @@ int main( int argc, char **argv )
 
     /* ---------- graph summary ---------- */
     DebugInfo( "valid node #: %d\n", validNodeCount );
-    DebugInfo( "median # of members in one node: %lu", n_to_l.MedianContainmentB() );
+    std::vector<int> usedNode;
+    forest.collectLevel( level, usedNode );
+    DebugInfo( "median # of members in one node: %lu", n_to_l.MedianContainmentB( &usedNode ) );
     DebugInfo( "mean   # of members in one node: %.2lf",
-               static_cast<double>( N ) / forest.levelSize( env["start-level"].toInt() ) );
+               static_cast<double>( N ) / forest.levelSize( level ) );
   }
 
   return 0;
