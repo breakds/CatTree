@@ -209,6 +209,12 @@ int main( int argc, char **argv )
 
   Forest<float,BinaryOnDistance> forest( env["forest-dir"] );
 
+
+  /* ---------- Summary Information of Forest ---------- */
+  forest.Summary();
+
+  
+
   /* ---------- Reconstruction ---------- */
   int depth = forest.depth();
 
@@ -318,8 +324,6 @@ int main( int argc, char **argv )
       progressbar.update( l + 1, "calculating voters" );
     }
 
-    // debugging:
-    DebugInfo( "valid node #: %d\n", validNodeCount );
 
     // voting
     {
@@ -345,7 +349,11 @@ int main( int argc, char **argv )
       }
     }
 
-
+    /* ---------- graph summary ---------- */
+    DebugInfo( "valid node #: %d\n", validNodeCount );
+    DebugInfo( "median # of members in one node: %lu", n_to_l.MedianContainmentB() );
+    DebugInfo( "mean   # of members in one node: %.2lf",
+               static_cast<double>( N ) / forest.levelSize( env["start-level"].toInt() ) );
   }
 
   return 0;
