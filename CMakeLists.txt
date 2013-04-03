@@ -198,8 +198,11 @@ set(CMAKE_CXX_FLAGS_GPROF "-O1 -pg")
 ADD_EXECUTABLE(plant experiment/CamvidPlant.cpp)
 TARGET_LINK_LIBRARIES(plant ${OPENCV})
 
-ADD_EXECUTABLE(reconstruct experiment/CamvidReconstruction.cpp)
-TARGET_LINK_LIBRARIES(reconstruct ${OPENCV})
+# ADD_EXECUTABLE(reconstruct experiment/CamvidReconstruction.cpp)
+# TARGET_LINK_LIBRARIES(reconstruct ${OPENCV})
+
+ADD_EXECUTABLE(beta experiment/betasys.cpp)
+TARGET_LINK_LIBRARIES(beta ${OPENCV})
 
 # ADD_EXECUTABLE(gen experiment/FeatureGen.cpp)
 # TARGET_LINK_LIBRARIES(gen ${OPENCV})

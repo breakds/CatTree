@@ -5,7 +5,10 @@
 #include "LLPack/utils/candy.hpp"
 #include "LLPack/algorithms/random.hpp"
 #include "LLPack/algorithms/algebra.hpp"
+#include "PatTk/data/Label.hpp"
 
+using ran_forest::Bipartite;
+using namespace PatTk;
 
 namespace cat_tree {
   class PowerSolver {
@@ -99,7 +102,7 @@ namespace cat_tree {
       }
     }
 
-    inline void y_from_q( double *y, double *q, bool debug=false )
+    inline void y_from_q( double *y, double *q )
     {
       double tmp[K];
 
@@ -113,19 +116,7 @@ namespace cat_tree {
           const double &alpha = ele.second;
           algebra::addScaledTo( y + n * K, q + l * K, K, alpha );
         }
-        if ( numL <= n ) {
-
-          if ( debug ) {
-            DebugInfo( "before:" );
-            printVec( tmp, K );
-            DebugInfo( "after:" );
-            printVec( y + n * K, K );
-            ResumeOnRet();
-          }
-
-        }
       }
-
     }
     
     inline double PowerIter( std::unique_ptr<double> &yptr )
@@ -146,7 +137,7 @@ namespace cat_tree {
 
         
 
-        y_from_q( y, q, false );
+        y_from_q( y, q);
 
         // debugging:
         // DebugInfo( "estimation of y: " );  

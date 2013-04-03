@@ -12,7 +12,6 @@
 #include "PatTk/interfaces/opencv_aux.hpp"
 #include "RanForest/RanForest.hpp"
 #include "../data/RedBox.hpp"
-#include "../optimize/power_solver.hpp"
 #include "../optimize/TMeanShell.hpp"
 
 using namespace EnvironmentVariable;
@@ -233,7 +232,7 @@ int main( int argc, char **argv )
 
   ProgressBar progressbar;
 
-
+  
   DebugInfo( "level %d: %d\n", env["start-level"].toInt(), forest.levelSize( env["start-level"].toInt() ) );
   for ( int level = env["start-level"].toInt(); level < env["start-level"]+1; level += env["level-stride"].toInt() ) {
     // naive
