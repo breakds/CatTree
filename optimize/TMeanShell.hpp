@@ -23,7 +23,8 @@ namespace cat_tree {
       int replicate;
       double converge;
       int dim;
-      Options() : maxIter(20), replicate(10), converge(1e-5), dim(10) {}
+      double wtBandwidth;
+      Options() : maxIter(20), replicate(10), converge(1e-5), dim(10), wtBandwidth(100.0) {}
     } options;
 
 
@@ -183,9 +184,10 @@ namespace cat_tree {
             }
             dist = sqrt( dist );
 
-            ele.second = exp( - dist / 0.005 );
-
+            ele.second = exp( - dist / options.wtBandwidth );
+	    
             s += ele.second;
+
           }
           
           s = 1.0 / s;

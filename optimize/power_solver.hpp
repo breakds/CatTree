@@ -120,7 +120,6 @@ namespace cat_tree {
     
     inline double PowerIter( std::unique_ptr<double> &yptr )
     {
-
       if ( !yptr ) {
         yptr.reset( new double[K*N] );
         y_from_q( yptr.get(), q );

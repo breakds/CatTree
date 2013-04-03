@@ -43,7 +43,7 @@ void InitBox( std::vector<std::string>& imgList, std::vector<std::string>& lblLi
   std::vector<std::string> testList = std::move( readlines( strf( "%s/%s",
                                                                   env["dataset"].c_str(),
                                                                   env["testing"].c_str() ) ) );
-
+  
   // insert into imgList
   std::vector<bool> isLabeled;
   isLabeled.reserve( trainList.size() + testList.size() );
@@ -108,6 +108,31 @@ void InitBox( std::vector<std::string>& imgList, std::vector<std::string>& lblLi
 
 }
 
+void GraphSummary( const Bipartite& graph, const BetaBox<FeatImage<float>::PatchProxy,splitterType> &box,
+		   FILE* out )
+{
+  int L = graph.sizeB();
+  int validCnt = 0;
+  int labeledCnt = 0;
+  for ( int l=0; l<L; l++ ) {
+    auto& _to_n = graph.to( l );
+    if ( 0 < _to_n.size() ) {
+      validCnt++;
+      bool flag = false;
+      for ( auto& ele : _to_n ) {
+	if ( box.labeledp[ele.first] ) flag = true;
+      }
+      if ( flag ) {
+        labeledCnt++;
+      }
+    }
+  }
+  Info( "Labeled/Valid: %d/%d (%.2lf%%)", labeledCnt, validCnt,
+	static_cast<double>( labeledCnt ) * 100.0 / validCnt );
+  fprintf( out, "Labeled/Valid: %d/%d (%.2lf%%)", labeledCnt, validCnt,
+	   static_cast<double>( labeledCnt ) * 100.0 / validCnt );
+}
+
 
 void test( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,splitterType>& box,
            const std::vector<std::string>& imgList,
@@ -119,7 +144,7 @@ void test( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,splitter
    * 3. reconstructed?
    */
 
-  box.solve( graph );
+  box.solve( graph, 20 );
 
   std::vector<int> correctCnt( imgList.size(), 0 );
   std::vector<int> totalCnt( imgList.size(), 0 );
@@ -203,8 +228,13 @@ void test( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,splitter
            static_cast<double>( allCnt ) * 100.0 / allTot );
   Info( "average: %d/%d (%.2lf%%)", allCnt, allTot,
         static_cast<double>( allCnt ) * 100.0 / allTot );
-
   END_WITH( out );
+
+  
+  WITH_OPEN( out, strf( "%s/graph_stats.txt", directory.c_str() ).c_str(), "w" );
+  GraphSummary( graph, box, out );
+  END_WITH( out );
+
   
   Done( "Write result to %s", directory.c_str() );
 }
@@ -243,8 +273,8 @@ int main( int argc, char **argv )
   if ( static_cast<std::string>( env["acquire-graph"] ) == "load" ) {
     Info( "Loading Prelim Graph ..." );
     Bipartite n_to_l( "prelim.graph" );
-    test( n_to_l, box, imgList, env["output"] );
     Done( "Loading Graph" );
+    test( n_to_l, box, imgList, env["output"] );
     TMeanShell<float> shell;
     shell.options.maxIter = 20;
     shell.options.replicate = env["replicate"].toInt();
