@@ -157,9 +157,9 @@ void test( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,splitter
     }
 
     int guess = std::distance( vote, std::max_element( vote, vote + LabelSet::classes ) );
-    est[id].at<cv::Vec3b>( y, x )[0] = std::get<0>( LabelSet::GetColor( guess ) );
+    est[id].at<cv::Vec3b>( y, x )[0] = std::get<2>( LabelSet::GetColor( guess ) );
     est[id].at<cv::Vec3b>( y, x )[1] = std::get<1>( LabelSet::GetColor( guess ) );
-    est[id].at<cv::Vec3b>( y, x )[2] = std::get<2>( LabelSet::GetColor( guess ) );
+    est[id].at<cv::Vec3b>( y, x )[2] = std::get<0>( LabelSet::GetColor( guess ) );
 
     totalCnt[id]++;
     if ( box.trueLabel[n] == guess ) {
@@ -245,21 +245,20 @@ int main( int argc, char **argv )
     Bipartite n_to_l( "prelim.graph" );
     test( n_to_l, box, imgList, env["output"] );
     Done( "Loading Graph" );
+    TMeanShell<float> shell;
+    shell.options.maxIter = 20;
+    shell.options.replicate = env["replicate"];
+    shell.Clustering( box.feat, box.dim(), n_to_l );
+    test( n_to_l, box, imgList, env["output-knn"] );
   } else {
     Bipartite n_to_l = std::move( box.forest.batch_query( box.feat, env["specified-level"] ) );
     n_to_l.write( "prelim.graph" );
     test( n_to_l, box, imgList, env["output"] );
+    TMeanShell<float> shell;
+    shell.options.maxIter = 20;
+    shell.options.replicate = env["replicate"];
+    shell.Clustering( box.feat, box.dim(), n_to_l );
+    test( n_to_l, box, imgList, env["output-knn"] );
   }
-
-
-  /* ---------- Clustering ---------- */
-  // TMeanShell<float> shell;
-  // shell.options.maxIter = 20;
-  // shell.options.replicate = env["replicate"];
-  // shell.Clustering( box.feat, box.dim(), n_to_l );
-
-  // test( n_to_l, box, imgList, env["output-knn"] );
-
-    
   return 0;
 }
