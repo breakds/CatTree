@@ -21,7 +21,7 @@ using namespace cat_tree;
 
 
 
-const featEnum DESCRIPTOR = BGRF;
+const featEnum DESCRIPTOR = HOG;
 template <typename dataType>
 using splitterType = BinaryOnDistance<dataType>;
 
@@ -260,7 +260,6 @@ int main( int argc, char **argv )
   InitLabel();
   InitBox( imgList, lblList, album, box );
   
-
   /* ---------- Pure Random Forest ---------- */
 
   Info( "Leaves/Patches : %d/%d (%.2lf%%)",
@@ -278,6 +277,7 @@ int main( int argc, char **argv )
     TMeanShell<float> shell;
     shell.options.maxIter = 20;
     shell.options.replicate = env["replicate"].toInt();
+    shell.options.wtBandwidth = env["dist-bandwidth"].toDouble();
     shell.Clustering( box.feat, box.dim(), n_to_l );
     test( n_to_l, box, imgList, env["output-knn"] );
   } else {
