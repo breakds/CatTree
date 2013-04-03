@@ -69,7 +69,7 @@ namespace cat_tree
 
 
     /* ---------- training ---------- */
-    void solve( const Bipartite& graph )
+    void solve( const Bipartite& graph, int maxIter = 200 )
     {
       int numL = static_cast<int>( labeled.size() );
       int numU = static_cast<int>( unlabeled.size() );
@@ -84,7 +84,7 @@ namespace cat_tree
       std::unique_ptr<double> y;
       
       PowerSolver solve;
-      solve.options.powerMaxIter = 20;
+      solve.options.powerMaxIter = maxIter;
       solve( numL, numU, &P[0], &graph, &tmpQ[0], y );
 
       auto p = tmpQ.begin();

@@ -95,7 +95,7 @@ endif ("${HOSTNAME}" MATCHES "zhang-submit.chtc.wisc.edu")
 
 # ================================================================================
 # Include Directory Structure for break@zhang-submit.chtc.wisc.edu
-if ("${HOSTNAME}" MATCHES "zhang-c001.chtc.wisc.edu")
+if ("${HOSTNAME}" MATCHES "zhang-c005.chtc.wisc.edu")
   include_directories(
     "~/pf/projects"
     ".")
@@ -103,10 +103,7 @@ if ("${HOSTNAME}" MATCHES "zhang-c001.chtc.wisc.edu")
   set( CMAKE_EXE_LINKER_FLAGS "-lopencv_core -lopencv_imgproc -lopencv_highgui" )
   set(OPENCV "")
   
-  # CUDA SDK 5.0
-  find_package("CUDA" 5.0 REQUIRED)
-  set(CUDA_NVCC_FLAGS "-arch=sm_30 --compiler-bindir /usr/bin")
-endif ("${HOSTNAME}" MATCHES "zhang-c001.chtc.wisc.edu")
+endif ("${HOSTNAME}" MATCHES "zhang-c005.chtc.wisc.edu")
 
 
 
