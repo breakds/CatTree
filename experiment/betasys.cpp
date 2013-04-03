@@ -234,7 +234,7 @@ int main( int argc, char **argv )
   /* ---------- Pure Random Forest ---------- */
 
   Info( "Leaves/Patches : %d/%d (%.2lf%%)",
-        box.forest.levelSize( env["specified-level"] ),
+        box.forest.levelSize( env["specified-level"].toInt() ),
         box.size(),
         static_cast<double>( box.forest.levelSize( env["specified-level"].toInt() ) )
         / box.size() * 100.0 );
@@ -247,7 +247,7 @@ int main( int argc, char **argv )
     Done( "Loading Graph" );
     TMeanShell<float> shell;
     shell.options.maxIter = 20;
-    shell.options.replicate = env["replicate"];
+    shell.options.replicate = env["replicate"].toInt();
     shell.Clustering( box.feat, box.dim(), n_to_l );
     test( n_to_l, box, imgList, env["output-knn"] );
   } else {
@@ -256,7 +256,7 @@ int main( int argc, char **argv )
     test( n_to_l, box, imgList, env["output"] );
     TMeanShell<float> shell;
     shell.options.maxIter = 20;
-    shell.options.replicate = env["replicate"];
+    shell.options.replicate = env["replicate"].toInt();
     shell.Clustering( box.feat, box.dim(), n_to_l );
     test( n_to_l, box, imgList, env["output-knn"] );
   }
