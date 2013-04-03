@@ -21,7 +21,7 @@ using namespace cat_tree;
 
 
 
-const featEnum DESCRIPTOR = BGR_FLOAT;
+const featEnum DESCRIPTOR = BGRF;
 template <typename dataType>
 using splitterType = BinaryOnDistance<dataType>;
 
@@ -126,6 +126,7 @@ void test( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,splitter
   std::vector<std::vector<cv::Mat> > perCh( imgList.size() );
   std::vector<cv::Mat> est( imgList.size() );
 
+
   for ( int i=0; i<static_cast<int>( imgList.size() ); i++ ) {
     cv::Mat org = cv::imread( imgList[i] );
     perCh[i].resize( LabelSet::classes );
@@ -170,28 +171,39 @@ void test( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,splitter
   printf( "\n" );
 
   // save out images
+  std::vector<std::string> imgNames;
+  imgNames.reserve( imgList.size() );
+  for ( auto& ele : imgList ) imgNames.push_back( path::file( ele ) );
+  
   system( strf( "rm -rf %s", directory.c_str() ).c_str() );
   system( strf( "mkdir -p %s/per_channel", directory.c_str() ).c_str() );
   system( strf( "mkdir -p %s/estimation", directory.c_str() ).c_str() );
   for ( int i=0; i<static_cast<int>( imgList.size() ); i++ ) {
-    system( strf( "mkdir -p %s/per_channel/%s", directory.c_str(), imgList[i].c_str() ).c_str() );
+    system( strf( "mkdir -p %s/per_channel/%s", directory.c_str(), imgNames[i].c_str() ).c_str() );
     for ( int k=0; k<LabelSet::classes; k++ ) {
-      cv::imwrite( strf( "%s/per_chennel/%s/%d.png",
+      cv::imwrite( strf( "%s/per_channel/%s/%d.png",
                          directory.c_str(),
-                         imgList[i].c_str(),
+                         imgNames[i].c_str(),
                          k ),
                    perCh[i][k] );
     }
-    cv::imwrite( strf( "%s/estimation/%s", directory.c_str(), imgList[i].c_str() ), est[i] );
+    cv::imwrite( strf( "%s/estimation/%s.png", directory.c_str(), imgNames[i].c_str() ), est[i] );
   }
 
   WITH_OPEN( out, strf( "%s/statics.txt", directory.c_str() ).c_str(), "w" );
-  for ( int i=0; i<static_cast<int>( imgList.size() ); i++ ) {
-    fprintf( out, "correct: %d/%d (%.2lf%%)", correctCnt[i], totalCnt[i],
+  for ( int i=0; i<static_cast<int>( imgNames.size() ); i++ ) {
+    fprintf( out, "correct: %d/%d (%.2lf%%)\n", correctCnt[i], totalCnt[i],
              static_cast<double>( correctCnt[i] ) * 100.0 / totalCnt[i] );
     Info( "%3d - correct: %d/%d (%.2lf%%)", i, correctCnt[i], totalCnt[i],
           static_cast<double>( correctCnt[i] ) * 100.0 / totalCnt[i] );
   }
+  int allCnt = std::accumulate( correctCnt.begin(), correctCnt.end(), 0 );
+  int allTot = std::accumulate( totalCnt.begin(), totalCnt.end(), 0 );
+  fprintf( out, "average: %d/%d (%.2lf%%)\n", allCnt, allTot,
+           static_cast<double>( allCnt ) * 100.0 / allTot );
+  Info( "average: %d/%d (%.2lf%%)", allCnt, allTot,
+        static_cast<double>( allCnt ) * 100.0 / allTot );
+
   END_WITH( out );
   
   Done( "Write result to %s", directory.c_str() );
@@ -220,11 +232,19 @@ int main( int argc, char **argv )
   
 
   /* ---------- Pure Random Forest ---------- */
-  
+
+  Info( "Leaves/Patches : %d/%d (%.2lf%%)",
+        box.forest.levelSize( env["specified-level"] ),
+        box.size(),
+        static_cast<double>( box.forest.levelSize( env["specified-level"].toInt() ) )
+        / box.size() * 100.0 );
+        
   Info( "start testing." );
   if ( static_cast<std::string>( env["acquire-graph"] ) == "load" ) {
-    Bipartite n_to_l( "prelime.graph" );
+    Info( "Loading Prelim Graph ..." );
+    Bipartite n_to_l( "prelim.graph" );
     test( n_to_l, box, imgList, env["output"] );
+    Done( "Loading Graph" );
   } else {
     Bipartite n_to_l = std::move( box.forest.batch_query( box.feat, env["specified-level"] ) );
     n_to_l.write( "prelim.graph" );

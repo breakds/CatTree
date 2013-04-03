@@ -79,10 +79,8 @@ namespace cat_tree {
     {
       // q(l) = sum_n beta_(n,l) * y(n)
       // beta(n,l) = alpha(n,l) / [ sum_n alpha(n,l) ]
+#     pragma omp parallel for
       for ( int l=0; l<m_to_l->sizeB(); l++ ) {
-
-
-
         auto _to_n = m_to_l->to(l);
         if ( 0 == _to_n.size() ) continue;
         
@@ -104,10 +102,11 @@ namespace cat_tree {
 
     inline void y_from_q( double *y, double *q )
     {
-      double tmp[K];
 
       // y(n) = sum_l alpha(n,l) q(l)
+#     pragma omp parallel for
       for ( int n=0; n<N; n++ ) {
+        double tmp[K];
         auto _to_l = m_to_l->from(n);
         algebra::copy( tmp, y + n * K, K );
         algebra::zero( y + n * K, K );
@@ -131,32 +130,23 @@ namespace cat_tree {
 
       double lastEnergy = - 1.0;
 
+
       for ( int iter=0; iter<options.powerMaxIter; iter++ ) {
         
         q_from_y( q, y );
 
-        
-
         y_from_q( y, q);
-
-        // debugging:
-        // DebugInfo( "estimation of y: " );  
-        // for ( int n=0; n<numL; n++ ) {
-        //   if ( 0.5 < P[n*K+9] ) {
-        //     algebra::emphasizeDim( y + n * K, K, 9 );
-        //   }
-        // }
-        // ResumeOnRet();
 
         enforce_y( y );
         
         double energy = 0.0;
+#       pragma omp parallel for reduction(+:energy)
         for ( int n=0; n<N; n++ ) {
           auto& _to_l = m_to_l->from( n );
           for ( auto& ele : _to_l ) {
             int l = ele.first;
-            double alpha = ele.second;
-            energy += alpha * algebra::dist2( y + n * K, q + l * K, K );
+            double energySeg = ele.second * algebra::dist2( y + n * K, q + l * K, K );
+            energy += energySeg;
           }
         }
 

@@ -84,6 +84,7 @@ namespace cat_tree
       std::unique_ptr<double> y;
       
       PowerSolver solve;
+      solve.options.powerMaxIter = 20;
       solve( numL, numU, &P[0], &graph, &tmpQ[0], y );
 
       auto p = tmpQ.begin();
