@@ -73,12 +73,13 @@ void InitBox( std::vector<std::string>& imgList, std::vector<std::string>& lblLi
   box.unlabeled.clear();
   box.feat.clear();
   progressbar.reset( N );
+  cvFeat<HOG>::options.cell_side = env["cell-size"].toInt();
   for ( int n=0; n<N; n++ ) {
     album.push( std::move( cvFeat<DESCRIPTOR>::gen( imgList[n] ) ) );
     progressbar.update( n+1, "Loading Album" );
   }
-  album.SetPatchStride( 1 );
-  album.SetPatchSize( env["patch-size"] );
+  album.SetPatchStride( env["cell-stride"].toInt() );
+  album.SetPatchSize( env["patch-size"].toInt() );
 
   progressbar.reset( N );
   for ( int n=0; n<N; n++ ) {
@@ -105,7 +106,6 @@ void InitBox( std::vector<std::string>& imgList, std::vector<std::string>& lblLi
   printf( "\n" );
   // forest
   box.LoadForest( env["forest-dir"] );
-
 }
 
 void GraphSummary( const Bipartite& graph, const BetaBox<FeatImage<float>::PatchProxy,splitterType> &box,
@@ -267,7 +267,8 @@ int main( int argc, char **argv )
         box.size(),
         static_cast<double>( box.forest.levelSize( env["specified-level"].toInt() ) )
         / box.size() * 100.0 );
-        
+  DebugInfo( "dim = %d", album(0).GetPatchDim() );
+  DebugInfo( "dim: %d", box.dim() );
   Info( "start testing." );
   if ( static_cast<std::string>( env["acquire-graph"] ) == "load" ) {
     Info( "Loading Prelim Graph ..." );
