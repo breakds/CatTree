@@ -201,6 +201,9 @@ TARGET_LINK_LIBRARIES(plant ${OPENCV})
 ADD_EXECUTABLE(beta experiment/betasys.cpp)
 TARGET_LINK_LIBRARIES(beta ${OPENCV})
 
+ADD_EXECUTABLE(finger experiment/fingerprint.cpp)
+TARGET_LINK_LIBRARIES(finger ${OPENCV})
+
 # ADD_EXECUTABLE(gen experiment/FeatureGen.cpp)
 # TARGET_LINK_LIBRARIES(gen ${OPENCV})
 
