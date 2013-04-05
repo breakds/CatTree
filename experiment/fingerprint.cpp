@@ -5,7 +5,7 @@
 #include "LLPack/utils/extio.hpp"
 #include "LLPack/utils/Environment.hpp"
 #include "LLPack/utils/pathname.hpp"
-#include "../data/Label.hpp"
+#include "PatTk/data/Label.hpp"
 #include "PatTk/data/FeatImage.hpp"
 #include "PatTk/interfaces/opencv_aux.hpp"
 #include "RanForest/RanForest.hpp"
@@ -30,7 +30,7 @@ void InitLabel()
 
 
 void InitBox( std::vector<std::string>& imgList, std::vector<std::string>& lblList,
-              Album<float>& album, FingerBox &box )
+              FingerBox &box )
 {
 
   std::vector<std::string> trainList = std::move( readlines( strf( "%s/%s",
@@ -80,7 +80,7 @@ void InitBox( std::vector<std::string>& imgList, std::vector<std::string>& lblLi
     }
     
     WITH_OPEN( in, lblList[n].c_str(), "r" );
-    FSCANF_CHECK( "%d", &box.trueLabel[n] );
+    FSCANF_CHECK( in, "%d", &box.trueLabel[n] );
     END_WITH( in );
 
     if ( isLabeled[n] ) {
@@ -134,11 +134,13 @@ void test( const Bipartite& graph, FingerBox& box,
    * 2. labeled under /estimation
    * 3. reconstructed?
    */
-
+  
   box.solve( graph, 20 );
 
-  std::vector<int> correctCnt( imgList.size(), 0 );
-  std::vector<int> totalCnt( imgList.size(), 0 );
+  std::vector<std::vector<int> > cnt( LabelSet::classes );
+  for ( auto& ele : cnt ) ele.resize( LabelSet::classes, 0 );
+  std::vector<int> totalCnt( LabelSet::classes, 0 );
+  std::vector<bool> isCorrect( box.size(), false );
 
 
 
@@ -157,32 +159,36 @@ void test( const Bipartite& graph, FingerBox& box,
       algebra::addScaledTo( vote, &box.q[l][0], LabelSet::classes, alpha );
     }
 
-    int id = box.feat[n].id();
-    int y = box.feat[n].y;
-    int x = box.feat[n].x;
-    
     int guess = std::distance( vote, std::max_element( vote, vote + LabelSet::classes ) );
     
-    totalCnt[id]++;
-    if ( box.trueLabel[n] == guess ) {
-      correctCnt[id]++;
-    }
-
+    totalCnt[ box.trueLabel[n] ]++;
+    cnt[box.trueLabel[n]][guess]++;
+    isCorrect[n] = ( guess == box.trueLabel[n] );
     progressbar.update( n+1, "Voting" );
   }
   printf( "\n" );
-
-  WITH_OPEN( out, strf( "%s/result.txt", env["output"].c_str() ).c_str(), "w" );
-  for ( int n=0; n<box.size(); n++ ) {
-    fprintf( out, "%d: %d/%d (%.2lf%%)\n", n, correctCnt[n], totalCnt[n],
-             static_cast<double>( correctCnt[n] ) * 100.0 / totalCnt[n] );
-  }
-  int allCnt = std::accumulate( correctCnt.begin(), correctCnt.end(), 0 );
-  int allTot = std::accumulate( totalCnt.begin(), totalCnt.end(), 0 );
-  fprintf( out, "%d: %d/%d (%.2lf%%)\n", n, allCnt, allTot,
-           static_cast<double>( allCnt ) * 100.0 / allTot );
-  END_WITH( out );
   
+  system( strf( "mkdir -p %s", directory.c_str() ).c_str() );
+  WITH_OPEN( out, strf( "%s/confusion.txt", directory.c_str() ).c_str(), "w" );
+  Info( "Confusion Matrix:" );
+  for ( int i=0; i<LabelSet::classes; i++ ) {
+    for ( int k=0; k<LabelSet::classes; k++ ) {
+      fprintf( out, "%.3lf\t", static_cast<double>( cnt[i][k] * 100 ) /totalCnt[i] );
+      printf( "%.3lf\t", static_cast<double>( cnt[i][k] * 100 ) /totalCnt[i] );
+    }
+    fprintf( out, "\n" );
+    printf( "\n" );
+  }
+  Done( "Experiment finished." );
+  END_WITH( out );
+
+  WITH_OPEN( out, strf( "%s/result.txt", directory.c_str() ).c_str(), "w" );
+  for ( int n=0; n<box.size(); n++ ) {
+    fprintf( out, "(%s): %s\n", 
+             path::file( imgList[n] ).c_str(), 
+             isCorrect[n] ? "hit" : "miss" );
+  }
+  END_WITH( out );
   Done( "Write result to %s", directory.c_str() );
 }
 
@@ -199,44 +205,45 @@ int main( int argc, char **argv )
   env.Summary();
 
   /* ---------- Initialization ---------- */
-  // std::vector<std::string> imgList;
-  // std::vector<std::string> lblList;
-  // Album<float> album;
-  // FingerBox box;
-
+  std::vector<std::string> imgList;
+  std::vector<std::string> lblList;
+  FingerBox box;
+  
   InitLabel();
-  // InitBox( imgList, lblList, album, box );
+  InitBox( imgList, lblList, box );
   
   /* ---------- Pure Random Forest ---------- */
 
-  // Info( "Leaves/Patches : %d/%d (%.2lf%%)",
-  //       box.forest.levelSize( env["specified-level"].toInt() ),
-  //       box.size(),
-  //       static_cast<double>( box.forest.levelSize( env["specified-level"].toInt() ) )
-  //       / box.size() * 100.0 );
-  // DebugInfo( "dim = %d", album(0).GetPatchDim() );
-  // DebugInfo( "dim: %d", box.dim() );
-  // Info( "start testing." );
-  // if ( static_cast<std::string>( env["acquire-graph"] ) == "load" ) {
-  //   Info( "Loading Prelim Graph ..." );
-  //   Bipartite n_to_l( "prelim.graph" );
-  //   Done( "Loading Graph" );
-  //   test( n_to_l, box, imgList, env["output"] );
-  //   TMeanShell<float> shell;
-  //   shell.options.maxIter = 20;
-  //   shell.options.replicate = env["replicate"].toInt();
-  //   shell.options.wtBandwidth = env["dist-bandwidth"].toDouble();
-  //   shell.Clustering( box.feat, box.dim(), n_to_l );
-  //   test( n_to_l, box, imgList, env["output-knn"] );
-  // } else {
-  //   Bipartite n_to_l = std::move( box.forest.batch_query( box.feat, env["specified-level"] ) );
-  //   n_to_l.write( "prelim.graph" );
-  //   test( n_to_l, box, imgList, env["output"] );
-  //   TMeanShell<float> shell;
-  //   shell.options.maxIter = 20;
-  //   shell.options.replicate = env["replicate"].toInt();
-  //   shell.Clustering( box.feat, box.dim(), n_to_l );
-  //   test( n_to_l, box, imgList, env["output-knn"] );
-  // }
-  // return 0;
+  Info( "Leaves/Patches : %d/%d (%.2lf%%)",
+        box.forest.levelSize( env["specified-level"].toInt() ),
+        box.size(),
+        static_cast<double>( box.forest.levelSize( env["specified-level"].toInt() ) )
+        / box.size() * 100.0 );
+  DebugInfo( "dim: %d", box.dim() );
+  Info( "start testing." );
+  if ( static_cast<std::string>( env["acquire-graph"] ) == "load" ) {
+    Info( "Loading Prelim Graph ..." );
+    Bipartite n_to_l( "prelim.graph" );
+    Done( "Loading Graph" );
+
+    
+    test( n_to_l, box, imgList, env["output"] );
+    TMeanShell<float> shell;
+    shell.options.maxIter = 20;
+    shell.options.replicate = env["replicate"].toInt();
+    shell.options.wtBandwidth = env["dist-bandwidth"].toDouble();
+    shell.Clustering( box.feat, box.dim(), n_to_l );
+    test( n_to_l, box, imgList, env["output-knn"] );
+  } else {
+    Bipartite n_to_l = std::move( box.forest.batch_query( box.feat, env["specified-level"] ) );
+    n_to_l.write( "prelim.graph" );
+    test( n_to_l, box, imgList, env["output"] );
+    TMeanShell<float> shell;
+    shell.options.maxIter = 20;
+    shell.options.replicate = env["replicate"].toInt();
+    shell.options.wtBandwidth = env["dist-bandwidth"].toDouble();
+    shell.Clustering( box.feat, box.dim(), n_to_l );
+    test( n_to_l, box, imgList, env["output-knn"] );
+  }
+  return 0;
 }

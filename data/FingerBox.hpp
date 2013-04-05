@@ -15,16 +15,15 @@ using namespace PatTk;
 
 namespace cat_tree
 {
-  template<typename featType = std::vector<float>, template<typename> class splitter = BinaryOnDistance>
   class FingerBox
   {
   public:
 
-    typedef typename ElementOf<featType>::type dataType;
+    typedef typename ElementOf<std::vector<float>>::type dataType;
     
 
     // array of feature vectors
-    std::vector<featType> feat;
+    std::vector<std::vector<float>> feat;
     
     // array of ground truth labels
     std::vector<int> trueLabel;
@@ -38,7 +37,7 @@ namespace cat_tree
     // array of testing IDs
     std::vector<int> unlabeled;
     
-    Forest<dataType,splitter> forest;
+    Forest<dataType,BinaryOnDistance> forest;
 
     // voters for leaf nodes
     std::vector<std::vector<double> > q;
