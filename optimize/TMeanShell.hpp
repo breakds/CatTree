@@ -217,5 +217,25 @@ namespace cat_tree {
         membership[i] = ranker[i];
       }
     }
+
+    template <typename feature_t>
+    inline void concentrate( const feature_t &p, std::vector<std::pair<int,double> > &membership ) const
+    {
+      heap<double,int> ranker( options.replicate );
+      for ( auto& ele : membership ) {
+        int l = ele.first;
+        double dist = 0.0;
+        for ( int j=0; j<options.dim; j++ ) {
+          double tmp = centers[l].get()[j] - p[j];
+          dist += tmp * tmp;
+        }
+        ranker.add( dist, l );
+      }
+      membership.resize( ranker.len );
+      for ( int i=0; i<ranker.len; i++ ) {
+        membership[i].first = ranker[i];
+        membership[i].second = exp( - ranker(i) / options.wtBandwidth );
+      }
+    }
   };
 }
