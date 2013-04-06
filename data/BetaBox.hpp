@@ -67,6 +67,13 @@ namespace cat_tree
       }
     }
 
+    inline void resetVoters()
+    {
+      for ( auto& ele : q ) {
+        std::fill( ele.begin(), ele.end(), LabelSet::inv );
+      }
+    }
+
 
     /* ---------- training ---------- */
     void solve( const Bipartite& graph, int maxIter = 200 )
@@ -92,6 +99,27 @@ namespace cat_tree
         for ( auto& item : ele ) {
           item = *(p++);
         }
+      }
+    }
+
+    void directSolve( const Bipartite& graph ) 
+    {
+      int L = graph.sizeB();
+      clearVoters();
+      std::vector<int> count( L, 0 );
+      for ( auto& n : labeled ) {
+	auto& _to_l = graph.from( n );
+	for ( auto& ele : _to_l ) {
+	  int l = ele.first;
+	  q[l][trueLabel[n]] += 1.0;
+	  count[l] ++;
+	}
+      }
+      
+      for ( int l=0; l<L; l++ ) {
+	if ( 0 < count[l] ) {
+	  algebra::scale( &q[l][0], LabelSet::classes, 1.0 / count[l] );
+	}
       }
     }
     

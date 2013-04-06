@@ -111,9 +111,11 @@ void InitBox( std::vector<std::string>& imgList, std::vector<std::string>& lblLi
 void GraphSummary( const Bipartite& graph, const BetaBox<FeatImage<float>::PatchProxy,splitterType> &box,
 		   FILE* out )
 {
+  int N = graph.sizeA();
   int L = graph.sizeB();
   int validCnt = 0;
   int labeledCnt = 0;
+  std::vector<int> safe( N, 0 );
   for ( int l=0; l<L; l++ ) {
     auto& _to_n = graph.to( l );
     if ( 0 < _to_n.size() ) {
@@ -124,14 +126,130 @@ void GraphSummary( const Bipartite& graph, const BetaBox<FeatImage<float>::Patch
       }
       if ( flag ) {
         labeledCnt++;
+	for ( auto& ele : _to_n ) {
+	  safe[ele.first] = 1;
+	}
       }
     }
   }
+  int safeCnt = std::accumulate( safe.begin(), safe.end(), 0 );
   Info( "Labeled/Valid: %d/%d (%.2lf%%)", labeledCnt, validCnt,
 	static_cast<double>( labeledCnt ) * 100.0 / validCnt );
-  fprintf( out, "Labeled/Valid: %d/%d (%.2lf%%)", labeledCnt, validCnt,
+  fprintf( out, "Labeled/Valid: %d/%d (%.2lf%%)\n", labeledCnt, validCnt,
 	   static_cast<double>( labeledCnt ) * 100.0 / validCnt );
+  Info( "Safe/#Patches: %d/%d (%.2lf%%)", safeCnt, N,
+	static_cast<double>( safeCnt ) * 100.0 / N );
+  fprintf( out, "Safe/#Patches: %d/%d (%.2lf%%)\n", safeCnt, N,
+	   static_cast<double>( safeCnt ) * 100.0 / N );
 }
+
+
+void directTest( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,splitterType>& box,
+		 const std::vector<std::string>& imgList,
+		 std::string directory )
+{
+  box.directSolve( graph );
+
+  std::vector<int> correctCnt( imgList.size(), 0 );
+  std::vector<int> totalCnt( imgList.size(), 0 );
+  std::vector<std::vector<cv::Mat> > perCh( imgList.size() );
+  std::vector<cv::Mat> est( imgList.size() );
+
+  
+  for ( int i=0; i<static_cast<int>( imgList.size() ); i++ ) {
+    cv::Mat org = cv::imread( imgList[i] );
+    perCh[i].resize( LabelSet::classes );
+    for ( auto& ele : perCh[i] ) ele.create( org.rows, org.cols, CV_8UC1 );
+    est[i].create( org.rows, org.cols, CV_8UC3 );
+  }
+
+  // voting
+  double vote[LabelSet::classes];
+    
+  ProgressBar progressbar;
+  progressbar.reset( box.size() );
+  for ( int n=0; n<box.size(); n++ ) {
+    // get vote
+    algebra::zero( vote, LabelSet::classes );
+    auto& _to_l = graph.from( n );
+    for ( auto& ele : _to_l ) {
+      int l = ele.first;
+      double alpha = ele.second;
+      algebra::addScaledTo( vote, &box.q[l][0], LabelSet::classes, alpha );
+    }
+
+    int id = box.feat[n].id();
+    int y = box.feat[n].y;
+    int x = box.feat[n].x;
+    for ( int k=0; k<LabelSet::classes; k++ ) {
+      perCh[id][k].at<uchar>( y, x ) = static_cast<uchar>( 255.0 * vote[k] );
+    }
+    
+    double voted = std::accumulate( vote, vote + LabelSet::classes, 0.0 );
+    if ( voted < 0.01 ) {
+      est[id].at<cv::Vec3b>( y, x )[0] = 255;
+      est[id].at<cv::Vec3b>( y, x )[1] = 255;
+      est[id].at<cv::Vec3b>( y, x )[2] = 255;
+    } else {
+      int guess = std::distance( vote, std::max_element( vote, vote + LabelSet::classes ) );
+      est[id].at<cv::Vec3b>( y, x )[0] = std::get<2>( LabelSet::GetColor( guess ) );
+      est[id].at<cv::Vec3b>( y, x )[1] = std::get<1>( LabelSet::GetColor( guess ) );
+      est[id].at<cv::Vec3b>( y, x )[2] = std::get<0>( LabelSet::GetColor( guess ) );
+      if ( box.trueLabel[n] == guess ) {
+	correctCnt[id]++;
+      }
+    }
+
+    totalCnt[id]++;
+    
+    progressbar.update( n+1, "Voting" );
+  }
+  printf( "\n" );
+
+  // save out images
+  std::vector<std::string> imgNames;
+  imgNames.reserve( imgList.size() );
+  for ( auto& ele : imgList ) imgNames.push_back( path::file( ele ) );
+  
+  system( strf( "rm -rf %s", directory.c_str() ).c_str() );
+  system( strf( "mkdir -p %s/per_channel", directory.c_str() ).c_str() );
+  system( strf( "mkdir -p %s/estimation", directory.c_str() ).c_str() );
+  for ( int i=0; i<static_cast<int>( imgList.size() ); i++ ) {
+    system( strf( "mkdir -p %s/per_channel/%s", directory.c_str(), imgNames[i].c_str() ).c_str() );
+    for ( int k=0; k<LabelSet::classes; k++ ) {
+      cv::imwrite( strf( "%s/per_channel/%s/%d.png",
+                         directory.c_str(),
+                         imgNames[i].c_str(),
+                         k ),
+                   perCh[i][k] );
+    }
+    cv::imwrite( strf( "%s/estimation/%s.png", directory.c_str(), imgNames[i].c_str() ), est[i] );
+  }
+
+  WITH_OPEN( out, strf( "%s/statics.txt", directory.c_str() ).c_str(), "w" );
+  for ( int i=0; i<static_cast<int>( imgNames.size() ); i++ ) {
+    fprintf( out, "correct: %d/%d (%.2lf%%)\n", correctCnt[i], totalCnt[i],
+             static_cast<double>( correctCnt[i] ) * 100.0 / totalCnt[i] );
+    Info( "%3d - correct: %d/%d (%.2lf%%)", i, correctCnt[i], totalCnt[i],
+          static_cast<double>( correctCnt[i] ) * 100.0 / totalCnt[i] );
+  }
+  int allCnt = std::accumulate( correctCnt.begin(), correctCnt.end(), 0 );
+  int allTot = std::accumulate( totalCnt.begin(), totalCnt.end(), 0 );
+  fprintf( out, "average: %d/%d (%.2lf%%)\n", allCnt, allTot,
+           static_cast<double>( allCnt ) * 100.0 / allTot );
+  Info( "average: %d/%d (%.2lf%%)", allCnt, allTot,
+        static_cast<double>( allCnt ) * 100.0 / allTot );
+  END_WITH( out );
+
+  
+  WITH_OPEN( out, strf( "%s/graph_stats.txt", directory.c_str() ).c_str(), "w" );
+  GraphSummary( graph, box, out );
+  END_WITH( out );
+
+  
+  Done( "Write result to %s", directory.c_str() );
+}
+
 
 
 void test( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,splitterType>& box,
@@ -274,6 +392,8 @@ int main( int argc, char **argv )
     Info( "Loading Prelim Graph ..." );
     Bipartite n_to_l( "prelim.graph" );
     Done( "Loading Graph" );
+    directTest( n_to_l, box, imgList, env["output-direct"] );
+    box.resetVoters();
     test( n_to_l, box, imgList, env["output"] );
     TMeanShell<float> shell;
     shell.options.maxIter = 20;
@@ -284,6 +404,8 @@ int main( int argc, char **argv )
   } else {
     Bipartite n_to_l = std::move( box.forest.batch_query( box.feat, env["specified-level"] ) );
     n_to_l.write( "prelim.graph" );
+    directTest( n_to_l, box, imgList, env["output-direct"] );
+    box.resetVoters();
     test( n_to_l, box, imgList, env["output"] );
     TMeanShell<float> shell;
     shell.options.maxIter = 20;
