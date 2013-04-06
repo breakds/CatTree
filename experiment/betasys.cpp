@@ -21,7 +21,7 @@ using namespace cat_tree;
 
 
 
-const featEnum DESCRIPTOR = BGRF;
+const featEnum DESCRIPTOR = LabF;
 template <typename dataType>
 using splitterType = BinaryOnDistance<dataType>;
 

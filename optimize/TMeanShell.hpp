@@ -229,7 +229,7 @@ namespace cat_tree {
           double tmp = centers[l].get()[j] - p[j];
           dist += tmp * tmp;
         }
-        ranker.add( dist, l );
+        ranker.add( sqrt( dist ), l );
       }
       membership.resize( ranker.len );
       for ( int i=0; i<ranker.len; i++ ) {
