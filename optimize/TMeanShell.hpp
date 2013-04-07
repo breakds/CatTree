@@ -232,9 +232,16 @@ namespace cat_tree {
         ranker.add( sqrt( dist ), l );
       }
       membership.resize( ranker.len );
+      double s = 0.0;
       for ( int i=0; i<ranker.len; i++ ) {
         membership[i].first = ranker[i];
         membership[i].second = exp( - ranker(i) / options.wtBandwidth );
+	s += membership[i].second;
+      }
+      // normalization
+      s = 1.0 / s;
+      for ( int i=0; i<ranker.len; i++ ) {
+	membership[i].second *= s;
       }
     }
   };
