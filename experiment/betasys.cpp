@@ -152,6 +152,8 @@ void directTest( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,sp
 
   std::vector<int> correctCnt( imgList.size(), 0 );
   std::vector<int> totalCnt( imgList.size(), 0 );
+  std::vector<int> correctCntPerClass( LabelSet::classes, 0 );
+  std::vector<int> totalCntPerClass( LabelSet::classes, 0 );
   std::vector<std::vector<cv::Mat> > perCh( imgList.size() );
   std::vector<cv::Mat> est( imgList.size() );
 
@@ -165,7 +167,7 @@ void directTest( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,sp
 
   // voting
   double vote[LabelSet::classes];
-    
+
   ProgressBar progressbar;
   progressbar.reset( box.size() );
   for ( int n=0; n<box.size(); n++ ) {
@@ -197,10 +199,12 @@ void directTest( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,sp
       est[id].at<cv::Vec3b>( y, x )[2] = std::get<0>( LabelSet::GetColor( guess ) );
       if ( box.trueLabel[n] == guess ) {
 	correctCnt[id]++;
+        correctCntPerClass[guess]++;
       }
     }
 
     totalCnt[id]++;
+    totalCntPerClass[box.trueLabel[n]]++;
     
     progressbar.update( n+1, "Voting" );
   }
@@ -226,6 +230,11 @@ void directTest( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,sp
     cv::imwrite( strf( "%s/estimation/%s.png", directory.c_str(), imgNames[i].c_str() ), est[i] );
   }
 
+
+
+  int allCnt = std::accumulate( correctCnt.begin(), correctCnt.end(), 0 );
+  int allTot = std::accumulate( totalCnt.begin(), totalCnt.end(), 0 );
+
   WITH_OPEN( out, strf( "%s/statics.txt", directory.c_str() ).c_str(), "w" );
   for ( int i=0; i<static_cast<int>( imgNames.size() ); i++ ) {
     fprintf( out, "correct: %d/%d (%.2lf%%)\n", correctCnt[i], totalCnt[i],
@@ -233,8 +242,6 @@ void directTest( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,sp
     Info( "%3d - correct: %d/%d (%.2lf%%)", i, correctCnt[i], totalCnt[i],
           static_cast<double>( correctCnt[i] ) * 100.0 / totalCnt[i] );
   }
-  int allCnt = std::accumulate( correctCnt.begin(), correctCnt.end(), 0 );
-  int allTot = std::accumulate( totalCnt.begin(), totalCnt.end(), 0 );
   fprintf( out, "average: %d/%d (%.2lf%%)\n", allCnt, allTot,
            static_cast<double>( allCnt ) * 100.0 / allTot );
   Info( "average: %d/%d (%.2lf%%)", allCnt, allTot,
@@ -245,7 +252,27 @@ void directTest( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,sp
   WITH_OPEN( out, strf( "%s/graph_stats.txt", directory.c_str() ).c_str(), "w" );
   GraphSummary( graph, box, out );
   END_WITH( out );
+  
+  // data output for graph
+  WITH_OPEN( out, strf( "%s/overall.txt", directory.c_str() ).c_str(), "w" );
+  fprintf( out, "%d %d %.8lf\n", allCnt, allTot, static_cast<double>( allCnt ) / allTot );
+  END_WITH( out );
 
+
+  WITH_OPEN( out, strf( "%s/perclass.txt", directory.c_str() ).c_str(), "w" );
+  for ( int k=0; k<LabelSet::classes; k++ ) {
+    if ( totalCntPerClass[k] > 0 ) {
+      fprintf( out, "%d %d %.8lf\n", 
+               correctCntPerClass[k],
+               totalCntPerClass[k],
+               static_cast<double>( correctCntPerClass[k] ) / totalCntPerClass[k] );
+    } else {
+      fprintf( out, "0 0 0.00\n" );
+    }
+  }
+  END_WITH( out );
+
+  
   
   Done( "Write result to %s", directory.c_str() );
 }
@@ -266,6 +293,8 @@ void test( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,splitter
 
   std::vector<int> correctCnt( imgList.size(), 0 );
   std::vector<int> totalCnt( imgList.size(), 0 );
+  std::vector<int> correctCntPerClass( LabelSet::classes, 0 );
+  std::vector<int> totalCntPerClass( LabelSet::classes, 0 );
   std::vector<std::vector<cv::Mat> > perCh( imgList.size() );
   std::vector<cv::Mat> est( imgList.size() );
 
@@ -305,7 +334,9 @@ void test( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,splitter
     est[id].at<cv::Vec3b>( y, x )[2] = std::get<0>( LabelSet::GetColor( guess ) );
 
     totalCnt[id]++;
+    totalCntPerClass[box.trueLabel[n]]++;
     if ( box.trueLabel[n] == guess ) {
+      correctCntPerClass[guess]++;
       correctCnt[id]++;
     }
 
@@ -333,6 +364,9 @@ void test( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,splitter
     cv::imwrite( strf( "%s/estimation/%s.png", directory.c_str(), imgNames[i].c_str() ), est[i] );
   }
 
+  int allCnt = std::accumulate( correctCnt.begin(), correctCnt.end(), 0 );
+  int allTot = std::accumulate( totalCnt.begin(), totalCnt.end(), 0 );
+
   WITH_OPEN( out, strf( "%s/statics.txt", directory.c_str() ).c_str(), "w" );
   for ( int i=0; i<static_cast<int>( imgNames.size() ); i++ ) {
     fprintf( out, "correct: %d/%d (%.2lf%%)\n", correctCnt[i], totalCnt[i],
@@ -340,8 +374,6 @@ void test( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,splitter
     Info( "%3d - correct: %d/%d (%.2lf%%)", i, correctCnt[i], totalCnt[i],
           static_cast<double>( correctCnt[i] ) * 100.0 / totalCnt[i] );
   }
-  int allCnt = std::accumulate( correctCnt.begin(), correctCnt.end(), 0 );
-  int allTot = std::accumulate( totalCnt.begin(), totalCnt.end(), 0 );
   fprintf( out, "average: %d/%d (%.2lf%%)\n", allCnt, allTot,
            static_cast<double>( allCnt ) * 100.0 / allTot );
   Info( "average: %d/%d (%.2lf%%)", allCnt, allTot,
@@ -353,6 +385,24 @@ void test( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,splitter
   GraphSummary( graph, box, out );
   END_WITH( out );
 
+  // data output for graph
+  WITH_OPEN( out, strf( "%s/overall.txt", directory.c_str() ).c_str(), "w" );
+  fprintf( out, "%d %d %.8lf\n", allCnt, allTot, static_cast<double>( allCnt ) / allTot );
+  END_WITH( out );
+
+
+  WITH_OPEN( out, strf( "%s/perclass.txt", directory.c_str() ).c_str(), "w" );
+  for ( int k=0; k<LabelSet::classes; k++ ) {
+    if ( totalCntPerClass[k] > 0 ) {
+      fprintf( out, "%d %d %.8lf\n", 
+               correctCntPerClass[k],
+               totalCntPerClass[k],
+               static_cast<double>( correctCntPerClass[k] ) / totalCntPerClass[k] );
+    } else {
+      fprintf( out, "0 0 0.00\n" );
+    }
+  }
+  END_WITH( out );
   
   Done( "Write result to %s", directory.c_str() );
 }
