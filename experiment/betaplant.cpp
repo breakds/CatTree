@@ -132,8 +132,9 @@ int main( int argc, char **argv )
   options.proportion = 1.1;
   options.stopNum = 20;
 
-
-  box.forest.grow( env["forest-size"].toInt(), box.feat, box.dim(), options );
+  {
+    box.forest.grow( env["forest-size"].toInt(), box.feat, box.dim(), options );
+  }
   box.forest.write( env["forest-dir"] );
   
   return 0;
