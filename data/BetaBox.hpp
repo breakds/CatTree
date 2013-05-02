@@ -15,7 +15,7 @@ using namespace PatTk;
 
 namespace cat_tree
 {
-  template<typename featType, template<typename> class splitter = BinaryOnDistance>
+  template<typename featType, template<typename> class kernel = VP>
   class BetaBox
   {
   public:
@@ -33,12 +33,12 @@ namespace cat_tree
     std::vector<bool> labeledp;
 
     // array of training IDs
-    std::vector<int> labeled;
+    std::vector<size_t> labeled;
     
     // array of testing IDs
-    std::vector<int> unlabeled;
+    std::vector<size_t> unlabeled;
     
-    Forest<dataType,splitter> forest;
+    Forest<dataType,kernel> forest;
 
     // voters for leaf nodes
     std::vector<std::vector<double> > q;
@@ -52,7 +52,7 @@ namespace cat_tree
     void LoadForest( std::string forestDir ) 
     {
       forest.read(forestDir);
-      q.resize( forest.nodeNum() );
+      q.resize( forest.numNodes() );
       for ( auto& ele : q ) {
         ele.resize( LabelSet::classes );
         std::fill( ele.begin(), ele.end(), LabelSet::inv );
@@ -78,15 +78,15 @@ namespace cat_tree
     /* ---------- training ---------- */
     void solve( const Bipartite& graph, int maxIter = 200 )
     {
-      int numL = static_cast<int>( labeled.size() );
-      int numU = static_cast<int>( unlabeled.size() );
+      size_t numL = labeled.size();
+      size_t numU = unlabeled.size();
 
       std::vector<double> P( numL * LabelSet::classes, 0.0 );
-      for ( int m=0; m<numL; m++ ) {
+      for ( size_t m=0; m<numL; m++ ) {
         P[ m * LabelSet::classes + trueLabel[m] ] = 1.0;
       }
 
-      std::vector<double> tmpQ( forest.nodeNum() * LabelSet::classes );
+      std::vector<double> tmpQ( forest.numNodes() * LabelSet::classes );
 
       std::unique_ptr<double> y;
       
@@ -104,19 +104,19 @@ namespace cat_tree
 
     void directSolve( const Bipartite& graph ) 
     {
-      int L = graph.sizeB();
+      size_t L = graph.sizeB();
       clearVoters();
-      std::vector<int> count( L, 0 );
+      std::vector<size_t> count( L, 0 );
       for ( auto& n : labeled ) {
 	auto& _to_l = graph.from( n );
 	for ( auto& ele : _to_l ) {
-	  int l = ele.first;
+	  size_t l = ele.first;
 	  q[l][trueLabel[n]] += 1.0;
 	  count[l] ++;
 	}
       }
       
-      for ( int l=0; l<L; l++ ) {
+      for ( size_t l=0; l<L; l++ ) {
 	if ( 0 < count[l] ) {
 	  algebra::scale( &q[l][0], LabelSet::classes, 1.0 / count[l] );
 	}
@@ -130,9 +130,9 @@ namespace cat_tree
       return feat[0].dim();
     }
     
-    int size() const
+    size_t size() const
     {
-      return static_cast<int>( feat.size() );
+      return feat.size();
     }
 
     /* ---------- testing ---------- */

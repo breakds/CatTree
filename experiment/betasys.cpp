@@ -10,7 +10,7 @@
 #include "PatTk/interfaces/opencv_aux.hpp"
 #include "RanForest/RanForest.hpp"
 #include "../data/BetaBox.hpp"
-#include "../optimize/TMeanShell.hpp"
+
 
 
 /* ----- used namespace ----- */
@@ -23,7 +23,7 @@ using namespace cat_tree;
 
 const featEnum DESCRIPTOR = BGRF;
 template <typename dataType>
-using splitterType = BinaryOnDistance<dataType>;
+using kernelType = VP<dataType>;
 
 void InitLabel()
 {
@@ -34,7 +34,7 @@ void InitLabel()
 
 
 void InitBox( std::vector<std::string>& imgList, std::vector<std::string>& lblList,
-              Album<float>& album, BetaBox<FeatImage<float>::PatchProxy,splitterType> &box )
+              Album<float>& album, BetaBox<FeatImage<float>::PatchProxy,kernelType> &box )
 {
 
   std::vector<std::string> trainList = std::move( readlines( strf( "%s/%s",
@@ -64,7 +64,7 @@ void InitBox( std::vector<std::string>& imgList, std::vector<std::string>& lblLi
   imgList = std::move( path::FFFL( env["dataset"], imgList, ".png" ) );
 
   ProgressBar progressbar;
-  int N = static_cast<int>( imgList.size() );
+  size_t N = imgList.size();
   int margin = env["sampling-margin"].toInt();
   int stride = env["patch-stride"].toInt();
   box.trueLabel.clear();
@@ -74,7 +74,7 @@ void InitBox( std::vector<std::string>& imgList, std::vector<std::string>& lblLi
   box.feat.clear();
   progressbar.reset( N );
   cvFeat<HOG>::options.cell_side = env["cell-size"].toInt();
-  for ( int n=0; n<N; n++ ) {
+  for ( size_t n=0; n<N; n++ ) {
     album.push( std::move( cvFeat<DESCRIPTOR>::gen( imgList[n] ) ) );
     progressbar.update( n+1, "Loading Album" );
   }
@@ -82,7 +82,7 @@ void InitBox( std::vector<std::string>& imgList, std::vector<std::string>& lblLi
   album.SetPatchSize( env["patch-size"].toInt() );
 
   progressbar.reset( N );
-  for ( int n=0; n<N; n++ ) {
+  for ( size_t n=0; n<N; n++ ) {
     cv::Mat lbl = cv::imread( lblList[n] );
     for ( int i = margin; i < lbl.rows - margin; i += stride ) {
       for ( int j = margin; j < lbl.cols - margin; j += stride ) {
@@ -94,9 +94,9 @@ void InitBox( std::vector<std::string>& imgList, std::vector<std::string>& lblLi
                                                      lbl.at<cv::Vec3b>( i, j )[2] ) );
         box.labeledp.push_back( isLabeled[n] );
         if ( isLabeled[n] ) {
-          box.labeled.push_back( static_cast<int>( box.feat.size() ) - 1 );
+          box.labeled.push_back( box.feat.size() - 1 );
         } else {
-          box.unlabeled.push_back( static_cast<int>( box.feat.size() ) - 1 );
+          box.unlabeled.push_back( box.feat.size() - 1 );
         }
       }
     }
@@ -108,15 +108,15 @@ void InitBox( std::vector<std::string>& imgList, std::vector<std::string>& lblLi
   box.LoadForest( env["forest-dir"] );
 }
 
-void GraphSummary( const Bipartite& graph, const BetaBox<FeatImage<float>::PatchProxy,splitterType> &box,
+void GraphSummary( const Bipartite& graph, const BetaBox<FeatImage<float>::PatchProxy,kernelType> &box,
 		   FILE* out )
 {
-  int N = graph.sizeA();
-  int L = graph.sizeB();
-  int validCnt = 0;
-  int labeledCnt = 0;
-  std::vector<int> safe( N, 0 );
-  for ( int l=0; l<L; l++ ) {
+  size_t N = graph.sizeA();
+  size_t L = graph.sizeB();
+  size_t validCnt = 0;
+  size_t labeledCnt = 0;
+  std::vector<size_t> safe( N, 0 );
+  for ( size_t l=0; l<L; l++ ) {
     auto& _to_n = graph.to( l );
     if ( 0 < _to_n.size() ) {
       validCnt++;
@@ -132,28 +132,28 @@ void GraphSummary( const Bipartite& graph, const BetaBox<FeatImage<float>::Patch
       }
     }
   }
-  int safeCnt = std::accumulate( safe.begin(), safe.end(), 0 );
-  Info( "Labeled/Valid: %d/%d (%.2lf%%)", labeledCnt, validCnt,
+  size_t safeCnt = std::accumulate( safe.begin(), safe.end(), 0 );
+  Info( "Labeled/Valid: %lu/%lu (%.2lf%%)", labeledCnt, validCnt,
 	static_cast<double>( labeledCnt ) * 100.0 / validCnt );
-  fprintf( out, "Labeled/Valid: %d/%d (%.2lf%%)\n", labeledCnt, validCnt,
+  fprintf( out, "Labeled/Valid: %lu/%lu (%.2lf%%)\n", labeledCnt, validCnt,
 	   static_cast<double>( labeledCnt ) * 100.0 / validCnt );
-  Info( "Safe/#Patches: %d/%d (%.2lf%%)", safeCnt, N,
+  Info( "Safe/#Patches: %lu/%lu (%.2lf%%)", safeCnt, N,
 	static_cast<double>( safeCnt ) * 100.0 / N );
-  fprintf( out, "Safe/#Patches: %d/%d (%.2lf%%)\n", safeCnt, N,
+  fprintf( out, "Safe/#Patches: %lu/%lu (%.2lf%%)\n", safeCnt, N,
 	   static_cast<double>( safeCnt ) * 100.0 / N );
 }
 
 
-void directTest( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,splitterType>& box,
+void directTest( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,kernelType>& box,
 		 const std::vector<std::string>& imgList,
 		 std::string directory )
 {
   box.directSolve( graph );
 
-  std::vector<int> correctCnt( imgList.size(), 0 );
-  std::vector<int> totalCnt( imgList.size(), 0 );
-  std::vector<int> correctCntPerClass( LabelSet::classes, 0 );
-  std::vector<int> totalCntPerClass( LabelSet::classes, 0 );
+  std::vector<size_t> correctCnt( imgList.size(), 0 );
+  std::vector<size_t> totalCnt( imgList.size(), 0 );
+  std::vector<size_t> correctCntPerClass( LabelSet::classes, 0 );
+  std::vector<size_t> totalCntPerClass( LabelSet::classes, 0 );
   std::vector<std::vector<cv::Mat> > perCh( imgList.size() );
   std::vector<cv::Mat> est( imgList.size() );
 
@@ -170,12 +170,12 @@ void directTest( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,sp
 
   ProgressBar progressbar;
   progressbar.reset( box.size() );
-  for ( int n=0; n<box.size(); n++ ) {
+  for ( size_t n=0; n<box.size(); n++ ) {
     // get vote
     algebra::zero( vote, LabelSet::classes );
     auto& _to_l = graph.from( n );
     for ( auto& ele : _to_l ) {
-      int l = ele.first;
+      size_t l = ele.first;
       double alpha = ele.second;
       algebra::addScaledTo( vote, &box.q[l][0], LabelSet::classes, alpha );
     }
@@ -232,17 +232,17 @@ void directTest( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,sp
 
 
 
-  int allCnt = std::accumulate( correctCnt.begin(), correctCnt.end(), 0 );
-  int allTot = std::accumulate( totalCnt.begin(), totalCnt.end(), 0 );
+  size_t allCnt = std::accumulate( correctCnt.begin(), correctCnt.end(), 0 );
+  size_t allTot = std::accumulate( totalCnt.begin(), totalCnt.end(), 0 );
 
   WITH_OPEN( out, strf( "%s/statics.txt", directory.c_str() ).c_str(), "w" );
   for ( int i=0; i<static_cast<int>( imgNames.size() ); i++ ) {
-    fprintf( out, "correct: %d/%d (%.2lf%%)\n", correctCnt[i], totalCnt[i],
+    fprintf( out, "correct: %lu/%lu (%.2lf%%)\n", correctCnt[i], totalCnt[i],
              static_cast<double>( correctCnt[i] ) * 100.0 / totalCnt[i] );
-    Info( "%3d - correct: %d/%d (%.2lf%%)", i, correctCnt[i], totalCnt[i],
+    Info( "%3d - correct: %lu/%lu (%.2lf%%)", i, correctCnt[i], totalCnt[i],
           static_cast<double>( correctCnt[i] ) * 100.0 / totalCnt[i] );
   }
-  fprintf( out, "average: %d/%d (%.2lf%%)\n", allCnt, allTot,
+  fprintf( out, "average: %lu/%lu (%.2lf%%)\n", allCnt, allTot,
            static_cast<double>( allCnt ) * 100.0 / allTot );
   Info( "average: %d/%d (%.2lf%%)", allCnt, allTot,
         static_cast<double>( allCnt ) * 100.0 / allTot );
@@ -255,14 +255,14 @@ void directTest( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,sp
   
   // data output for graph
   WITH_OPEN( out, strf( "%s/overall.txt", directory.c_str() ).c_str(), "w" );
-  fprintf( out, "%d %d %.8lf\n", allCnt, allTot, static_cast<double>( allCnt ) / allTot );
+  fprintf( out, "%lu %lu %.8lf\n", allCnt, allTot, static_cast<double>( allCnt ) / allTot );
   END_WITH( out );
 
 
   WITH_OPEN( out, strf( "%s/perclass.txt", directory.c_str() ).c_str(), "w" );
   for ( int k=0; k<LabelSet::classes; k++ ) {
     if ( totalCntPerClass[k] > 0 ) {
-      fprintf( out, "%d %d %.8lf\n", 
+      fprintf( out, "%lu %lu %.8lf\n", 
                correctCntPerClass[k],
                totalCntPerClass[k],
                static_cast<double>( correctCntPerClass[k] ) / totalCntPerClass[k] );
@@ -279,7 +279,7 @@ void directTest( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,sp
 
 
 
-void test( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,splitterType>& box,
+void test( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,kernelType>& box,
            const std::vector<std::string>& imgList,
            std::string directory )
 {
@@ -291,10 +291,10 @@ void test( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,splitter
 
   box.solve( graph, 20 );
 
-  std::vector<int> correctCnt( imgList.size(), 0 );
-  std::vector<int> totalCnt( imgList.size(), 0 );
-  std::vector<int> correctCntPerClass( LabelSet::classes, 0 );
-  std::vector<int> totalCntPerClass( LabelSet::classes, 0 );
+  std::vector<size_t> correctCnt( imgList.size(), 0 );
+  std::vector<size_t> totalCnt( imgList.size(), 0 );
+  std::vector<size_t> correctCntPerClass( LabelSet::classes, 0 );
+  std::vector<size_t> totalCntPerClass( LabelSet::classes, 0 );
   std::vector<std::vector<cv::Mat> > perCh( imgList.size() );
   std::vector<cv::Mat> est( imgList.size() );
 
@@ -311,7 +311,7 @@ void test( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,splitter
     
   ProgressBar progressbar;
   progressbar.reset( box.size() );
-  for ( int n=0; n<box.size(); n++ ) {
+  for ( size_t n=0; n<box.size(); n++ ) {
     // get vote
     algebra::zero( vote, LabelSet::classes );
     auto& _to_l = graph.from( n );
@@ -364,17 +364,17 @@ void test( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,splitter
     cv::imwrite( strf( "%s/estimation/%s.png", directory.c_str(), imgNames[i].c_str() ), est[i] );
   }
 
-  int allCnt = std::accumulate( correctCnt.begin(), correctCnt.end(), 0 );
-  int allTot = std::accumulate( totalCnt.begin(), totalCnt.end(), 0 );
+  size_t allCnt = std::accumulate( correctCnt.begin(), correctCnt.end(), 0 );
+  size_t allTot = std::accumulate( totalCnt.begin(), totalCnt.end(), 0 );
 
   WITH_OPEN( out, strf( "%s/statics.txt", directory.c_str() ).c_str(), "w" );
   for ( int i=0; i<static_cast<int>( imgNames.size() ); i++ ) {
-    fprintf( out, "correct: %d/%d (%.2lf%%)\n", correctCnt[i], totalCnt[i],
+    fprintf( out, "correct: %lu/%lu (%.2lf%%)\n", correctCnt[i], totalCnt[i],
              static_cast<double>( correctCnt[i] ) * 100.0 / totalCnt[i] );
-    Info( "%3d - correct: %d/%d (%.2lf%%)", i, correctCnt[i], totalCnt[i],
+    Info( "%3d - correct: %lu/%lu (%.2lf%%)", i, correctCnt[i], totalCnt[i],
           static_cast<double>( correctCnt[i] ) * 100.0 / totalCnt[i] );
   }
-  fprintf( out, "average: %d/%d (%.2lf%%)\n", allCnt, allTot,
+  fprintf( out, "average: %lu/%lu (%.2lf%%)\n", allCnt, allTot,
            static_cast<double>( allCnt ) * 100.0 / allTot );
   Info( "average: %d/%d (%.2lf%%)", allCnt, allTot,
         static_cast<double>( allCnt ) * 100.0 / allTot );
@@ -387,14 +387,14 @@ void test( const Bipartite& graph, BetaBox<FeatImage<float>::PatchProxy,splitter
 
   // data output for graph
   WITH_OPEN( out, strf( "%s/overall.txt", directory.c_str() ).c_str(), "w" );
-  fprintf( out, "%d %d %.8lf\n", allCnt, allTot, static_cast<double>( allCnt ) / allTot );
+  fprintf( out, "%lu %lu %.8lf\n", allCnt, allTot, static_cast<double>( allCnt ) / allTot );
   END_WITH( out );
 
 
   WITH_OPEN( out, strf( "%s/perclass.txt", directory.c_str() ).c_str(), "w" );
   for ( int k=0; k<LabelSet::classes; k++ ) {
     if ( totalCntPerClass[k] > 0 ) {
-      fprintf( out, "%d %d %.8lf\n", 
+      fprintf( out, "%lu %lu %.8lf\n", 
                correctCntPerClass[k],
                totalCntPerClass[k],
                static_cast<double>( correctCntPerClass[k] ) / totalCntPerClass[k] );
@@ -423,7 +423,7 @@ int main( int argc, char **argv )
   std::vector<std::string> imgList;
   std::vector<std::string> lblList;
   Album<float> album;
-  BetaBox<FeatImage<float>::PatchProxy,splitterType> box;
+  BetaBox<FeatImage<float>::PatchProxy,kernelType> box;
 
   InitLabel();
   InitBox( imgList, lblList, album, box );
@@ -445,22 +445,22 @@ int main( int argc, char **argv )
     directTest( n_to_l, box, imgList, env["output-direct"] );
     box.resetVoters();
     test( n_to_l, box, imgList, env["output"] );
-    TMeanShell<float> shell;
+    TMeanShell<float> shell( box.dim() );
     shell.options.maxIter = 20;
     shell.options.replicate = env["replicate"].toInt();
     shell.options.wtBandwidth = env["dist-bandwidth"].toDouble();
-    shell.Clustering( box.feat, box.dim(), n_to_l );
+    shell.Clustering( box.feat, n_to_l );
     test( n_to_l, box, imgList, env["output-knn"] );
   } else {
-    Bipartite n_to_l = std::move( box.forest.batch_query( box.feat, env["specified-level"] ) );
+    Bipartite n_to_l = std::move( box.forest.batchQuery( box.feat, env["specified-level"] ) );
     n_to_l.write( "prelim.graph" );
     directTest( n_to_l, box, imgList, env["output-direct"] );
     box.resetVoters();
     test( n_to_l, box, imgList, env["output"] );
-    TMeanShell<float> shell;
+    TMeanShell<float> shell( box.dim() );
     shell.options.maxIter = 20;
     shell.options.replicate = env["replicate"].toInt();
-    shell.Clustering( box.feat, box.dim(), n_to_l );
+    shell.Clustering( box.feat, n_to_l );
     test( n_to_l, box, imgList, env["output-knn"] );
   }
   return 0;

@@ -192,8 +192,8 @@ set(CMAKE_CXX_FLAGS_GPROF "-O1 -pg")
 # ADD_EXECUTABLE(vis experiment/visualize.cpp)
 
 # experiment on Camvid
-ADD_EXECUTABLE(plant experiment/CamvidPlant.cpp)
-TARGET_LINK_LIBRARIES(plant ${OPENCV})
+# ADD_EXECUTABLE(plant experiment/CamvidPlant.cpp)
+# TARGET_LINK_LIBRARIES(plant ${OPENCV})
 
 # ADD_EXECUTABLE(reconstruct experiment/CamvidReconstruction.cpp)
 # TARGET_LINK_LIBRARIES(reconstruct ${OPENCV})
@@ -201,8 +201,8 @@ TARGET_LINK_LIBRARIES(plant ${OPENCV})
 ADD_EXECUTABLE(beta experiment/betasys.cpp)
 TARGET_LINK_LIBRARIES(beta ${OPENCV})
 
-ADD_EXECUTABLE(finger experiment/fingerprint.cpp)
-TARGET_LINK_LIBRARIES(finger ${OPENCV})
+ADD_EXECUTABLE(plant experiment/betaplant.cpp)
+TARGET_LINK_LIBRARIES(plant ${OPENCV})
 
 # ADD_EXECUTABLE(gen experiment/FeatureGen.cpp)
 # TARGET_LINK_LIBRARIES(gen ${OPENCV})

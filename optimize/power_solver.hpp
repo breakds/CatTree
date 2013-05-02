@@ -13,15 +13,15 @@ using namespace PatTk;
 namespace cat_tree {
   class PowerSolver {
     // parameters:
-    int numL;
-    int numU;
+    size_t numL;
+    size_t numU;
     const double *P;
     const Bipartite *m_to_l;
     double *q;
     std::vector<int> label;
     
     // internal
-    int N;
+    size_t N;
     int K;
     std::mt19937 rng;
 
@@ -62,7 +62,7 @@ namespace cat_tree {
 
     void initY( double *y )
     {
-      for ( int n=0; n<N; n++ ) {
+      for ( size_t n=0; n<N; n++ ) {
         std::vector<double> tmp = rndgen::rnd_unit_vec<double>( K, rng );
         algebra::watershed( &tmp[0], y + n * K, K );
       }
@@ -80,14 +80,14 @@ namespace cat_tree {
       // q(l) = sum_n beta_(n,l) * y(n)
       // beta(n,l) = alpha(n,l) / [ sum_n alpha(n,l) ]
 #     pragma omp parallel for
-      for ( int l=0; l<m_to_l->sizeB(); l++ ) {
+      for ( size_t l=0; l<m_to_l->sizeB(); l++ ) {
         auto _to_n = m_to_l->to(l);
         if ( 0 == _to_n.size() ) continue;
         
         algebra::zero( q + l * K, K );
         double s = 0.0;
         for ( auto& ele : _to_n ) {
-          const int &n = ele.first;
+          const size_t &n = ele.first;
           const double &alpha = ele.second;
           s += alpha;
           algebra::addScaledTo( q + l * K, y + n * K, K, alpha );
@@ -105,13 +105,13 @@ namespace cat_tree {
 
       // y(n) = sum_l alpha(n,l) q(l)
 #     pragma omp parallel for
-      for ( int n=0; n<N; n++ ) {
+      for ( size_t n=0; n<N; n++ ) {
         double tmp[K];
         auto _to_l = m_to_l->from(n);
         algebra::copy( tmp, y + n * K, K );
         algebra::zero( y + n * K, K );
         for ( auto& ele : _to_l ) {
-          const int &l = ele.first;
+          const size_t &l = ele.first;
           const double &alpha = ele.second;
           algebra::addScaledTo( y + n * K, q + l * K, K, alpha );
         }
@@ -140,10 +140,10 @@ namespace cat_tree {
         
         double energy = 0.0;
 #       pragma omp parallel for reduction(+:energy)
-        for ( int n=0; n<N; n++ ) {
+        for ( size_t n=0; n<N; n++ ) {
           auto& _to_l = m_to_l->from( n );
           for ( auto& ele : _to_l ) {
-            int l = ele.first;
+            size_t l = ele.first;
             double energySeg = ele.second * algebra::dist2( y + n * K, q + l * K, K );
             energy += energySeg;
           }
@@ -162,7 +162,7 @@ namespace cat_tree {
 
 
   public:
-    double operator()( int numL1, int numU1, const double* P1, 
+    double operator()( size_t numL1, size_t numU1, const double* P1, 
                        const Bipartite *m_to_l1, double *q1, 
                        std::unique_ptr<double> &y )
     {
@@ -175,7 +175,7 @@ namespace cat_tree {
       q = q1;
       K = LabelSet::classes;
       label.resize( numL );
-      for ( int i=0; i<numL; i++ ) {
+      for ( size_t i=0; i<numL; i++ ) {
         for ( int k=0; k<K; k++ ) {
           if ( P[i*K+k] > 0.9 ) {
             label[i] = k;
