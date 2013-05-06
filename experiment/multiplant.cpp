@@ -24,38 +24,42 @@ using kernelType = VP<dataType>;
 
 int main( int argc, char **argv )
 {
+
   if ( argc < 2 ) {
     Error( "Missing configuration file in options." );
     exit( -1 );
   }
-
   env.parse( argv[1] );
   env.Summary();
 
-  // The following code put all the image names into imgList
 
+  // read all the training image names. The file containing training
+  // image names as rows is specified by @env dataset and @env
+  // training
   std::vector<std::string> trainList = std::move( readlines( strf( "%s/%s",
                                                                    env["dataset"].c_str(),
                                                                    env["training"].c_str() ) ) );
+  // read all the testing image names. The file containing testing
+  // image names as rows is specified by @env dataset and @env testing
   std::vector<std::string> testList = std::move( readlines( strf( "%s/%s",
                                                                   env["dataset"].c_str(),
                                                                   env["testing"].c_str() ) ) );
-  
+
+  // merge @var testList and @var trainList into @var imgList
   std::vector<std::string> imgList;
   imgList.reserve( trainList.size() + testList.size() );
-
   for ( auto& ele : trainList ) {
     imgList.push_back( ele );
   }
-
   for ( auto& ele : testList ) {
     imgList.push_back( ele );
   }
-  
+  // add prefix and postfix to every element of @var imgList
   imgList = std::move( path::FFFL( env["dataset"], imgList, ".png" ) );
 
+  
 
-  // The following code read the album
+  // The following code reads the album
   Album<float> album;
   ProgressBar progressbar;
   size_t N = imgList.size();
