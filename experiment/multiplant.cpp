@@ -128,7 +128,7 @@ int main( int argc, char **argv )
     }
 #   pragma omp critical
     {
-      progress.update( ++finished, "stage 1 training" );
+      progressbar.update( ++finished, "stage 1 training" );
     }
   }
   
