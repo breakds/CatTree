@@ -204,6 +204,9 @@ TARGET_LINK_LIBRARIES(beta ${OPENCV})
 ADD_EXECUTABLE(plant experiment/betaplant.cpp)
 TARGET_LINK_LIBRARIES(plant ${OPENCV})
 
+ADD_EXECUTABLE(multiplant experiment/multiplant.cpp)
+TARGET_LINK_LIBRARIES(multiplant ${OPENCV})
+
 # ADD_EXECUTABLE(gen experiment/FeatureGen.cpp)
 # TARGET_LINK_LIBRARIES(gen ${OPENCV})
 
