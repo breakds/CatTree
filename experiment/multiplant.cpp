@@ -107,14 +107,14 @@ int main( int argc, char **argv )
 
       // build forest
       Forest<float,VP> forest;
-      // 1 tree, feature vectors in feat, feat[0].size as dimension, and options
-      forest.grow( 5, feat, feat[0].size(), options );
+      // 1 tree, feature vectors in feat, feat[0].size as dimension, and options, silent
+      forest.grow( 5, feat, feat[0].size(), options, true );
       // query tree
       graph[i] = std::move( forest.batchQuery( feat ) );
       // KNN with TMeanShell -> n_to_l
       shell[i].options.maxIter = 20;
       shell[i].options.replicate = 2;
-      shell[i].Clustering( feat, graph[i] );
+      shell[i].Clustering( feat, graph[i], true );
     }
 
     for ( int i=0; i<album.size(); i++ ) {
