@@ -110,13 +110,18 @@ int main( int argc, char **argv )
       // 1 tree, feature vectors in feat, feat[0].size as dimension, and options, silent
       forest.grow( 5, feat, feat[0].size(), options, true );
       // query tree
-      graph[i] = std::move( forest.batchQuery( feat ) );
+      graph[i] = std::move( forest.batchQuery( feat, -1, true ) );
       // KNN with TMeanShell -> n_to_l
       shell[i].options.maxIter = 20;
       shell[i].options.replicate = 2;
       shell[i].Clustering( feat, graph[i], true );
+#     pragma omp critical
+      {
+	progressbar.update( ++finished, "stage 1 training" );
+      }
     }
-
+    
+    Info( "Merging vantage points ..." );
     for ( int i=0; i<album.size(); i++ ) {
       size_t L = graph[i].sizeB();
       for ( size_t l=0; l<L; l++ ) {
@@ -126,10 +131,7 @@ int main( int argc, char **argv )
         }
       }
     }
-#   pragma omp critical
-    {
-      progressbar.update( ++finished, "stage 1 training" );
-    }
+    Done( "Vantage points merged." );
   }
   
 
