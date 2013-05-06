@@ -91,7 +91,10 @@ int main( int argc, char **argv )
       shell.emplace_back( album(0).GetPatchDim() );
     }
 
+    progressbar.reset( album.size() );
+    int finished = 0;
 
+#   pragma omp parallel for
     for ( int i=0; i<album.size(); i++ ) {
       auto& img = album(i);
       // get all patches from img to feat
@@ -122,6 +125,10 @@ int main( int argc, char **argv )
           vantages.push_back( shell[i].centers[l] );
         }
       }
+    }
+#   pragma omp critical
+    {
+      progress.update( ++finished, "stage 1 training" );
     }
   }
   
