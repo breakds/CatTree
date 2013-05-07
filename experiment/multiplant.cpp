@@ -88,13 +88,15 @@ int main( int argc, char **argv )
     // stop if node contains less than or equal to 5 data points
     options.stopNum = 5;
 
-    
+
+    // prepare the slots, so that later we can assign each image a
+    // shell and a (bipartite) graph
     std::vector<TMeanShell<float> > shell;
     std::vector<Bipartite> graph( album.size() );
     for ( auto __attribute__((__unused__)) &img : album ) {
       shell.emplace_back( album(0).GetPatchDim() );
     }
-
+    
     progressbar.reset( album.size() );
     int finished = 0;
 
